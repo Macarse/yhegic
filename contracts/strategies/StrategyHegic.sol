@@ -131,10 +131,15 @@ contract StrategyHegic is BaseStrategy {
     }
 
     function hegicFutureProfit() public view returns (uint256) {
+        uint256 ethProfit = ethFutureProfit();
+        if (ethProfit == 0) {
+            return 0;
+        }
+
         address[] memory path = new address[](2);
         path[0] = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2); // weth
         path[1] = address(want);
-        uint256[] memory amounts = Uni(unirouter).getAmountsOut(ethFutureProfit(), path);
+        uint256[] memory amounts = Uni(unirouter).getAmountsOut(ethProfit, path);
 
         return amounts[amounts.length - 1];
     }

@@ -17,6 +17,15 @@ def test_min_deposit(vault, gov, hegic, hegicStaking, strategy):
     assert hegicStaking.balanceOf(strategy) == 0
 
 
+def test_initial_balances(gov, hegic, hegicStaking, vault, strategy):
+    vault.addStrategy(strategy, hegic.balanceOf(gov), 2 ** 256 - 1, 0, {"from": gov})
+
+    assert strategy.balanceOfWant() == 0
+    assert strategy.balanceOfStake() == 0
+    assert strategy.ethFutureProfit() == 0
+    assert strategy.hegicFutureProfit() == 0
+
+
 def test_balances(gov, hegic, hegicStaking, vault, strategy):
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
     vault.addStrategy(strategy, hegic.balanceOf(gov), 2 ** 256 - 1, 0, {"from": gov})

@@ -6,7 +6,7 @@ from eth_utils import is_checksum_address
 
 API_VERSION = config["dependencies"][0].split("@")[-1]
 Vault = project.load(
-    Path.home() / ".brownie" / "packages" / config["dependencies"][0]
+    Path.home() / ".brownie" / "packages" / config["dependencies"][1]
 ).Vault
 
 

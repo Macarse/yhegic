@@ -29,6 +29,10 @@ contract MockUni {
     }
 
     function getAmountsOut(uint256 amountIn, address[] memory path) external view returns (uint256[] memory amounts) {
+        if (amountIn == 0) {
+            revert("UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT");
+        }
+
         require(path[0] == address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2), "weth");
         amounts = new uint256[](2);
         amounts[0] = 0;
