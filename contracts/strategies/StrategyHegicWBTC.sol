@@ -29,12 +29,16 @@ contract StrategyHegicWBTC is BaseStrategy {
         address _vault,
         address _hegic,
         address _hegicStaking,
-        address _unirouter
+        address _unirouter,
+        address _WBTC
     ) public BaseStrategy(_vault) {
         hegic = _hegic;
         hegicStaking = _hegicStaking;
         unirouter = _unirouter;
+        WBTC = _WBTC;
+
         IERC20(hegic).safeApprove(hegicStaking, uint256(-1));
+        IERC20(WBTC).safeApprove(unirouter, uint256(-1));
     }
 
     function protectedTokens() internal override view returns (address[] memory) {
@@ -128,7 +132,7 @@ contract StrategyHegicWBTC is BaseStrategy {
     function _swap(uint256 _amountIn) internal returns (uint256[] memory amounts) {
         address[] memory path = new address[](3);
         path[0] = address(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599); // wbtc
-        path[1] = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2); // weth
+        path[1] = address(0x6B175474E89094C44Da98b954EedeAC495271d0F); // dai
         path[2] = address(want);
 
         Uni(unirouter).swapExactTokensForTokens(_amountIn, uint256(0), path, address(this), now.add(1 days));
@@ -142,7 +146,7 @@ contract StrategyHegicWBTC is BaseStrategy {
 
         address[] memory path = new address[](3);
         path[0] = address(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599); // wbtc
-        path[1] = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2); // weth
+        path[1] = address(0x6B175474E89094C44Da98b954EedeAC495271d0F); // dai
         path[2] = address(want);
         uint256[] memory amounts = Uni(unirouter).getAmountsOut(wbtcProfit, path);
 
@@ -161,8 +165,4 @@ contract StrategyHegicWBTC is BaseStrategy {
     function balanceOfStake() public view returns (uint256) {
         return IERC20(hegicStaking).balanceOf(address(this)).mul(LOT_PRICE);
     }
-
-    // We need a receive function since Hegic pays in ETH
-    // TODO: commented this out, because WBTC.
-    //receive() external payable {}
 }
