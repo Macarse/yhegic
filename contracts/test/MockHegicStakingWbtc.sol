@@ -14,9 +14,10 @@ contract MockHegicStakingWbtc is ERC20 {
 
     event Claim(address account, uint256 profit);
 
-    constructor(IERC20 _token) public ERC20("Hegic WBTC Staking Lot", "hlWBTC") {
+    constructor(IERC20 _token, IERC20 _WBTC) public ERC20("Hegic WBTC Staking Lot", "hlWBTC") {
         totalProfit = 0;
         token = _token;
+        WBTC = _WBTC;
         _mint(msg.sender, 100);
     }
 

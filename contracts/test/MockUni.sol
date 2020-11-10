@@ -11,6 +11,16 @@ contract MockUni {
         token = _token;
     }
 
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external {
+      token.mintTo(to, 2* 10**18);
+    }
+
     function swapExactETHForTokens(
         uint256 amountOutMin,
         address[] calldata path,
