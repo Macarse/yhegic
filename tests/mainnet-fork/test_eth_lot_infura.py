@@ -6,7 +6,7 @@ from brownie import StrategyHegic
 
 def test_hegic_strategy_infura(pm):
     hegic_liquidity = accounts.at(
-        "0x736f85bf359e3e2db736d395ed8a4277123eeee1"
+        "0x736f85bf359e3e2db736d395ed8a4277123eeee1", force=True
     )  # Hegic: Liquidity M&U (lot's of hegic)
 
     rewards = accounts[2]
