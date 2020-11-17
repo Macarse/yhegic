@@ -23,8 +23,8 @@ contract StrategyEthHegicLP is BaseStrategy {
     address public weth;
     address public hegic;
     address public rHegic;
-    address public EthPoolStaking;
-    address public EthPool;
+    address public ethPoolStaking;
+    address public ethPool;
     address public unirouter;
     string public constant override name = "StrategyEthHegicLP";
 
@@ -33,21 +33,21 @@ contract StrategyEthHegicLP is BaseStrategy {
         address _vault,
         address _hegic,
         address _rHegic,
-        address _EthPoolStaking,
-        address _EthPool,
+        address _ethPoolStaking,
+        address _ethPool,
         address _unirouter
     ) public BaseStrategy(_vault) {
-        want = _weth;
+        weth = _weth;
         hegic = _hegic;
         rHegic = _rHegic;
-        EthPoolStaking = _EthPoolStaking;
-        EthPool = _EthPool;
+        ethPoolStaking = _ethPoolStaking;
+        ethPool = _ethPool;
         unirouter = _unirouter;
 
         // just in case there's some magic switch from rHegic -> HEGIC at some point in the future
-        IERC20(hegic).safeApprove(EthPoolStaking, uint256(-1));
-        IERC20(rHegic).safeApprove(EthPoolStaking, uint256(-1));
-        IERC20(EthPool).safeApprove(EthPoolStaking, uint256(-1));
+        IERC20(hegic).safeApprove(ethPoolStaking, uint256(-1));
+        IERC20(rHegic).safeApprove(ethPoolStaking, uint256(-1));
+        IERC20(ethPool).safeApprove(ethPoolStaking, uint256(-1));
     }
 
     // for the weth->eth swap
@@ -58,53 +58,54 @@ contract StrategyEthHegicLP is BaseStrategy {
         // same as above re: magic switch.
         protected[0] = hegic;
         protected[1] = rHegic;
-        protected[2] = EthPool;
-        protected[3] = EthPoolStaking;
+        protected[2] = ethPool;
+        protected[3] = ethPoolStaking;
         protected[4] = weth;
+        protected[5] = address(want);
         return protected;
     }
 
     function depositLockRemaining() internal view returns (uint256) {
-        uint256 timeDeposited = IHegicEthPool(EthPool).lastProvideTimestamp(address(this));
-        uint256 timeLock = IHegicEthPool(EthPool).lockupPeriod().add(1 days);
+        uint256 timeDeposited = IHegicEthPool(ethPool).lastProvideTimestamp(address(this));
+        uint256 timeLock = IHegicEthPool(ethPool).lockupPeriod().add(1 days);
         uint256 timeUnlocked = block.timestamp;
 
         return (timeUnlocked).sub((timeLock).add(timeDeposited));
     }
 
     function withdrawLockRemaining() internal view returns (uint256) {
-        uint256 timeDeposited = IHegicEthPool(EthPool).lastProvideTimestamp(address(this));
-        uint256 timeLock = IHegicEthPool(EthPool).lockupPeriod();
+        uint256 timeDeposited = IHegicEthPool(ethPool).lastProvideTimestamp(address(this));
+        uint256 timeLock = IHegicEthPool(ethPool).lockupPeriod();
         uint256 timeUnlocked = block.timestamp;
 
         return (timeUnlocked).sub((timeLock).add(timeDeposited));
     }
 
     // just for the strategist to see whether this is allowed or not
-    function depositLocked() public view returns (string) {
+    function depositLocked() public view returns (string memory) {
         uint256 locked = depositLockRemaining();
             if (locked <= 0) {
-                return name = "Deposit available";
+                return "Deposit available";
             }
             else {
-                return name = "Deposit locked";
+                return "Deposit locked";
             }
     }
 
     // just for the strategist to see whether this is allowed or not
-     function withdrawLocked() public view returns (string) {
+     function withdrawLocked() public view returns (string memory) {
         uint256 locked = withdrawLockRemaining();
             if (locked <= 0) {
-                return name = "Withdraw available";
+                return "Withdraw available";
             }
             else {
-                return name = "Withdraw locked";
+                return "Withdraw locked";
             }
     }
 
     // returns sum of all assets, realized and unrealized
     function estimatedTotalAssets() public override view returns (uint256) {
-        return balanceOfWant(address(this)).add(balanceOfStake()).add(balanceOfPool()).add(ethFutureProfit());
+        return balanceOfWant().add(balanceOfStake()).add(balanceOfPool()).add(ethFutureProfit());
     }
 
     function prepareReturn(uint256 _debtOutstanding) internal override returns (uint256 _profit) {
@@ -122,7 +123,7 @@ contract StrategyEthHegicLP is BaseStrategy {
             IHegicEthPoolStaking(ethPoolStaking).getReward();
 
             // swap rhegic available in the contract for weth
-            uint256 _hegicBalance = IERC20(rhegic).balanceOf(address(this));
+            uint256 _hegicBalance = IERC20(rHegic).balanceOf(address(this));
             _swap(_hegicBalance);
         }
 
@@ -153,9 +154,10 @@ contract StrategyEthHegicLP is BaseStrategy {
         if (depositLock <= 0 ) {
             if (_wantAvailable > 0) {
                 // turn weth to Eth
-                uint256 availableFunds = swapWethtoEth(_wantAvailable);
+                swapWethtoEth(_wantAvailable);
+                uint256 _availableFunds = address(this).balance;
                 // make sure approvals are properly set up in the constructor
-                IHegicEthPool(ethPool).provide(availableFunds);
+                IHegicEthPool(ethPool).provide(_availableFunds);
                 uint256 writeEth = IERC20(ethPool).balanceOf(address(this));
                 IHegicEthPoolStaking(ethPoolStaking).stake(writeEth);
             }
@@ -166,16 +168,15 @@ contract StrategyEthHegicLP is BaseStrategy {
     // each deposit into the ETH pool restarts the 14 day counter on the entire value.
         // we will have to include a deposit lockout for lockupPeriod()+1 days to allow exiting position
     function exitPosition() internal override {
-        uint256 stakes = IERC20(EthPoolStaking).balanceOf(address(this));
-        uint256 writeEth = IERC20(EthPool).balanceOf(address(this));
+        uint256 writeEth = IERC20(ethPool).balanceOf(address(this));
         uint256 _timeLock = withdrawLockRemaining();
         if (_timeLock <= 0) {
-            IHegicEthPoolStaking(EthPoolStaking).exit();
-            IHegicEthPool(EthPool).withdraw(writeEth);
-            uint256 _ethBalance = address(this).balance();
+            uint256 writeBurn = (writeEth).add(1);
+            IHegicEthPoolStaking(ethPoolStaking).exit();
+            IHegicEthPool(ethPool).withdraw(writeEth, writeBurn);
+            uint256 _ethBalance = address(this).balance;
             swapEthtoWeth(_ethBalance);
         }
-        else return name = "withdrawal timelocked";
     }
 
     //this math only deals with want, which is weth.
@@ -191,18 +192,18 @@ contract StrategyEthHegicLP is BaseStrategy {
 
 
     // withdraw a fraction, if not timelocked
-    function _withdrawSome(uint256 _amount) internal returns (uint256) {
+    function _withdrawSome(uint256 _amount) internal returns (string memory) {
         uint256 _amountWriteEth = (_amount).mul(writeEthRatio());
         // this should mean that we always withdraw the amount of writeEth we take from staking
         uint256 _amountBurn = (_amountWriteEth).add(1);
         if (withdrawLockRemaining() <= 0) {
-            IHegicEthPoolStaking(EthPoolStaking).withdraw(_amountWriteEth);
+            IHegicEthPoolStaking(ethPoolStaking).withdraw(_amountWriteEth);
             IHegicEthPool(ethPool).withdraw(_amountWriteEth, _amountBurn);
             // convert eth to want
-            uint256 _ethBalance = address(this).balance();
+            uint256 _ethBalance = address(this).balance;
             swapEthtoWeth(_ethBalance);
         }
-        else return name = "withdrawal timelocked";
+        else return "withdrawal timelocked";
     }
 
 
@@ -217,7 +218,7 @@ contract StrategyEthHegicLP is BaseStrategy {
     // swaps rHegic for weth
     function _swap(uint256 _amountIn) internal returns (uint256[] memory amounts) {
         address[] memory path = new address[](2);
-        path[0] = address(0x47c0ad2ae6c0ed4bcf7bc5b380d7205e89436e84); // rHegic
+        path[0] = address(0x47C0aD2aE6c0Ed4bcf7bc5b380D7205E89436e84); // rHegic
         //path[0] = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2); // weth
         path[1] = address(want);
 
@@ -232,7 +233,7 @@ contract StrategyEthHegicLP is BaseStrategy {
         }
 
         address[] memory path = new address[](2);
-        path[0] = address(0x47c0ad2ae6c0ed4bcf7bc5b380d7205e89436e84); // rHegic
+        path[0] = address(0x47C0aD2aE6c0Ed4bcf7bc5b380D7205E89436e84); // rHegic
         path[1] = address(want);
         uint256[] memory amounts = Uni(unirouter).getAmountsOut(hegicProfit, path);
 
@@ -241,19 +242,21 @@ contract StrategyEthHegicLP is BaseStrategy {
 
     // returns (r)Hegic earned by the LP
     function hegicFutureProfit() public view returns (uint256) {
-        return IHegicEthPoolStaking(EthPoolStaking).earned(address(this));
+        return IHegicEthPoolStaking(ethPoolStaking).earned(address(this));
     }
 
     // returns ETH in the pool
-    function balanceOfPool() public view returns (uint256) {
-        uint256 writeEth = IERC20(EthPool).balanceOf(address(this));
-        return (writeEth).div(writeEthRatio());
+    function balanceOfPool() internal view returns (uint256) {
+        uint256 ratio = writeEthRatio();
+        uint256 writeEth = IERC20(ethPool).balanceOf(address(this));
+        return (writeEth).div(ratio);
     }
 
     // returns pooled ETH that is staked
-    function balanceOfStake() public view returns (uint256) {
-        uint256 writeEth = IERC20(EthPoolStaking).balanceOf(address(this));
-        return (writeEth).div(writeEthRatio());
+    function balanceOfStake() internal view returns (uint256) {
+        uint256 ratio = writeEthRatio();
+        uint256 writeEth = IERC20(ethPoolStaking).balanceOf(address(this));
+        return (writeEth).div(ratio);
     }
 
     // returns balance of wETH
@@ -262,9 +265,9 @@ contract StrategyEthHegicLP is BaseStrategy {
     }
 
     // calculates the current ETH:writeETH ratio. Should return approx ~1000
-    function writeEthRatio() internal returns (uint256) {
-        uint256 supply = IHegicEthPool(EthPool).totalSupply();
-        uint256 balance = IHegicEthPool(EthPool).totalBalance();
+    function writeEthRatio() internal view returns (uint256) {
+        uint256 supply = IHegicEthPool(ethPool).totalSupply();
+        uint256 balance = IHegicEthPool(ethPool).totalBalance();
         uint256 rate = 0;
         if (supply > 0 && balance > 0) {
              rate = (supply).div(balance);
