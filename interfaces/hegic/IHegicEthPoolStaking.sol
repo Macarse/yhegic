@@ -11,7 +11,7 @@ interface IHegicEthPoolStaking {
 
     function exit() external;
 
-    function earned(address) public view override returns(uint256);
+    function earned(address) external view returns(uint256);
 
-    function balanceOf(address) external view override returns (uint256);
+    function balanceOf(address) external view returns (uint256);
 }

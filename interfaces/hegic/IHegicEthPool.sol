@@ -3,7 +3,7 @@
 pragma solidity ^0.6.12;
 
 interface IHegicEthPool {
-    function approve(address, uint256);
+    function approve(address, uint256) external;
 
     function provide(uint256) external payable returns (uint256);
 
@@ -11,14 +11,14 @@ interface IHegicEthPool {
 
     function shareOf(address) external view returns (uint256);
 
-    function availableBalance() public view returns (uint256);
+    function availableBalance() external view returns (uint256);
 
-    function totalBalance() public override view returns (uint256);
+    function totalBalance() external view returns (uint256);
 
-    function totalSupply() public override view returns (uint256);
+    function totalSupply() external view returns (uint256);
 
-    function lastProvideTimestamp(address) public view returns (uint256);
+    function lastProvideTimestamp(address) external view returns (uint256);
 
-    function lockupPeriod() public view returns (uint256);
+    function lockupPeriod() external view returns (uint256);
 
 }
