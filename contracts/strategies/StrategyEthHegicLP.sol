@@ -21,7 +21,6 @@ contract StrategyEthHegicLP is BaseStrategy {
     using SafeMath for uint256;
 
     address public weth;
-    address public hegic;
     address public rHegic;
     address public ethPoolStaking;
     address public ethPool;
@@ -31,21 +30,18 @@ contract StrategyEthHegicLP is BaseStrategy {
     constructor(
         address _weth,
         address _vault,
-        address _hegic,
         address _rHegic,
         address _ethPoolStaking,
         address _ethPool,
         address _unirouter
     ) public BaseStrategy(_vault) {
         weth = _weth;
-        hegic = _hegic;
         rHegic = _rHegic;
         ethPoolStaking = _ethPoolStaking;
         ethPool = _ethPool;
         unirouter = _unirouter;
 
-        // just in case there's some magic switch from rHegic -> HEGIC at some point in the future
-        IERC20(hegic).safeApprove(ethPoolStaking, uint256(-1));
+        // TODO: uncertain if these are set up properly.
         IERC20(rHegic).safeApprove(ethPoolStaking, uint256(-1));
         IERC20(ethPool).safeApprove(ethPoolStaking, uint256(-1));
     }
@@ -55,17 +51,15 @@ contract StrategyEthHegicLP is BaseStrategy {
 
     function protectedTokens() internal override view returns (address[] memory) {
         address[] memory protected = new address[](5);
-        // same as above re: magic switch.
-        protected[0] = hegic;
-        protected[1] = rHegic;
-        protected[2] = ethPool;
-        protected[3] = ethPoolStaking;
-        protected[4] = weth;
-        protected[5] = address(want);
+        protected[0] = rHegic;
+        protected[1] = ethPool;
+        protected[2] = ethPoolStaking;
+        protected[3] = weth;
+        protected[4] = address(want);
         return protected;
     }
 
-    function depositLockRemaining() internal view returns (uint256) {
+    function depositLockRemaining() public view returns (uint256) {
         uint256 timeDeposited = IHegicEthPool(ethPool).lastProvideTimestamp(address(this));
         uint256 timeLock = IHegicEthPool(ethPool).lockupPeriod().add(1 days);
         uint256 timeUnlocked = block.timestamp;
@@ -73,34 +67,12 @@ contract StrategyEthHegicLP is BaseStrategy {
         return (timeUnlocked).sub((timeLock).add(timeDeposited));
     }
 
-    function withdrawLockRemaining() internal view returns (uint256) {
+    function withdrawLockRemaining() public view returns (uint256) {
         uint256 timeDeposited = IHegicEthPool(ethPool).lastProvideTimestamp(address(this));
         uint256 timeLock = IHegicEthPool(ethPool).lockupPeriod();
         uint256 timeUnlocked = block.timestamp;
 
         return (timeUnlocked).sub((timeLock).add(timeDeposited));
-    }
-
-    // just for the strategist to see whether this is allowed or not
-    function depositLocked() public view returns (string memory) {
-        uint256 locked = depositLockRemaining();
-            if (locked <= 0) {
-                return "Deposit available";
-            }
-            else {
-                return "Deposit locked";
-            }
-    }
-
-    // just for the strategist to see whether this is allowed or not
-     function withdrawLocked() public view returns (string memory) {
-        uint256 locked = withdrawLockRemaining();
-            if (locked <= 0) {
-                return "Withdraw available";
-            }
-            else {
-                return "Withdraw locked";
-            }
     }
 
     // returns sum of all assets, realized and unrealized
