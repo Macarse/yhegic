@@ -51,7 +51,7 @@ def test_rhegic_strategy_infura(pm):
         "0x9b18975e64763bDA591618cdF02D2f14a9875981", owner=gov
     ) #ETH LP pool staking for rHegic
     uni = Contract.from_explorer(
-        "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", owner=gov
+        "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", owner=go
     )  # UNI router v2
 
     strategy = guardian.deploy(StrategyEthHegicLP, yEthLP, rHegic, ethPool, ethPoolStaking, uni)
