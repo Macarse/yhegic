@@ -42,7 +42,7 @@ def test_rhegic_strategy_infura(pm):
 
     # declaring yEthLP as the vault
     Vault = pm(config["dependencies"][-1]).Vault
-    yEthLP = gov.deploy(Vault, hegic, gov, rewards, "", "")
+    yEthLP = gov.deploy(Vault, weth, gov, rewards, "", "")
 
     ethPool = Contract.from_explorer(
         "0x878F15ffC8b894A1BA7647c7176E4C01f74e140b", owner=gov
@@ -75,9 +75,13 @@ def test_rhegic_strategy_infura(pm):
     weth.approve(yEthLP, Wei("10000 ether"), {"from": alice})
 
     yEthLP.deposit(Wei("1000 ether"), {"from": bob})
+    #deposit lock. 70k blocks is just over 16 days. Maximum timelock is 15 days.
+    chain.mine(Wei("70000 ether"))
     yEthLP.deposit(Wei("7880 ether"), {"from": alice})
+    chain.mine(Wei("70000 ether"))
 
     strategy.harvest()
+    chain.mine(Wei("70000 ether"))
 
     assert rHegic.balanceOf(strategy) == 0
     assert ethPool.balanceOf(strategy) == 0
