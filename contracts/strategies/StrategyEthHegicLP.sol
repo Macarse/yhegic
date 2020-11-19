@@ -42,7 +42,8 @@ contract StrategyEthHegicLP is BaseStrategy {
         unirouter = _unirouter;
 
         // TODO: uncertain if these are set up properly.
-        IERC20(rHegic).safeApprove(ethPoolStaking, uint256(-1));
+
+        IERC20(rHegic).safeApprove(unirouter, uint256(-1));
         IERC20(ethPool).safeApprove(ethPoolStaking, uint256(-1));
     }
 
@@ -59,13 +60,13 @@ contract StrategyEthHegicLP is BaseStrategy {
         return protected;
     }
 
-    function depositLockRemaining() public view returns (uint256) {
-        uint256 timeDeposited = IHegicEthPool(ethPool).lastProvideTimestamp(address(this));
-        uint256 timeLock = IHegicEthPool(ethPool).lockupPeriod().add(1 days);
-        uint256 timeUnlocked = block.timestamp;
+//    function depositLockRemaining() public view returns (uint256) {
+    //    uint256 timeDeposited = IHegicEthPool(ethPool).lastProvideTimestamp(address(this));
+     //   uint256 timeLock = IHegicEthPool(ethPool).lockupPeriod().add(1 days);
+      //  uint256 timeUnlocked = block.timestamp;
 
-        return (timeUnlocked).sub((timeLock).add(timeDeposited));
-    }
+      //  return (timeUnlocked).sub((timeLock).add(timeDeposited));
+    //}
 
     function withdrawLockRemaining() public view returns (uint256) {
         uint256 timeDeposited = IHegicEthPool(ethPool).lastProvideTimestamp(address(this));
@@ -122,18 +123,19 @@ contract StrategyEthHegicLP is BaseStrategy {
 
        // Invest the rest of the want
        uint256 _wantAvailable = balanceOfWant().sub(_debtOutstanding);
-       uint256 depositLock = depositLockRemaining();
-        if (depositLock <= 0 ) {
+       //uint256 depositLock = depositLockRemaining();
+       // if (depositLock <= 0 ) {
             if (_wantAvailable > 0) {
                 // turn weth to Eth
                 swapWethtoEth(_wantAvailable);
                 uint256 _availableFunds = address(this).balance;
+                uint256 _minMint = 0;
                 // make sure approvals are properly set up in the constructor
-                IHegicEthPool(ethPool).provide(_availableFunds);
+                IHegicEthPool(ethPool).provide{value: _availableFunds}(_minMint);
                 uint256 writeEth = IERC20(ethPool).balanceOf(address(this));
                 IHegicEthPoolStaking(ethPoolStaking).stake(writeEth);
             }
-        }
+       // }
     }
 
     // N.B. this will only work so long as the various contracts are not timelocked

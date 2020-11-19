@@ -41,7 +41,9 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         unirouter = _unirouter;
 
         // TODO: uncertain if these are set up properly.
-        IERC20(rHegic).safeApprove(wbtcPoolStaking, uint256(-1));
+
+        IERC20(rHegic).safeApprove(unirouter, uint256(-1));
+        IERC20(wbtc).safeApprove(wbtcPool, uint256(-1));
         IERC20(wbtcPool).safeApprove(wbtcPoolStaking, uint256(-1));
     }
 
@@ -55,13 +57,13 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         return protected;
     }
 
-    function depositLockRemaining() public view returns (uint256) {
-        uint256 timeDeposited = IHegicWbtcPool(wbtcPool).lastProvideTimestamp(address(this));
-        uint256 timeLock = IHegicWbtcPool(wbtcPool).lockupPeriod().add(1 days);
-        uint256 timeUnlocked = block.timestamp;
-
-        return (timeUnlocked).sub((timeLock).add(timeDeposited));
-    }
+  //  function depositLockRemaining() public view returns (uint256) {
+   //     uint256 timeDeposited = IHegicWbtcPool(wbtcPool).lastProvideTimestamp(address(this));
+   //     uint256 timeLock = IHegicWbtcPool(wbtcPool).lockupPeriod().add(1 days);
+  //      uint256 timeUnlocked = block.timestamp;
+//
+   //     return (timeUnlocked).sub((timeLock).add(timeDeposited));
+  //  }
 
     function withdrawLockRemaining() public view returns (uint256) {
         uint256 timeDeposited = IHegicWbtcPool(wbtcPool).lastProvideTimestamp(address(this));
@@ -112,16 +114,16 @@ contract StrategyWbtcHegicLP is BaseStrategy {
 
        // Invest the rest of the want
        uint256 _wantAvailable = balanceOfWant().sub(_debtOutstanding);
-       uint256 depositLock = depositLockRemaining();
-        if (depositLock <= 0 ) {
+      // uint256 depositLock = depositLockRemaining();
+       // if (depositLock <= 0 ) {
             if (_wantAvailable > 0) {
                 uint256 _availableFunds = address(this).balance;
                 //TODO: make sure approvals are properly set up in the constructor
-                IHegicWbtcPool(wbtcPool).provide(_availableFunds);
+                IHegicWbtcPool(wbtcPool).provide(_availableFunds, 0);
                 uint256 writeWbtc = IERC20(wbtcPool).balanceOf(address(this));
                 IHegicWbtcPoolStaking(wbtcPoolStaking).stake(writeWbtc);
             }
-        }
+        //}
     }
 
     // N.B. this will only work so long as the various contracts are not timelocked

@@ -5,7 +5,7 @@ pragma solidity ^0.6.12;
 interface IHegicWbtcPool {
     function approve(address, uint256) external;
 
-    function provide(uint256) external returns (uint256);
+    function provide(uint256, uint256) external returns (uint256);
 
     function withdraw (uint256, uint256) external returns (uint256);
 
