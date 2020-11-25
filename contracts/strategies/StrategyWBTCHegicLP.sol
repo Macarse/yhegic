@@ -40,8 +40,6 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         wbtcPool = _wbtcPool;
         unirouter = _unirouter;
 
-        // TODO: uncertain if these are set up properly.
-
         IERC20(rHegic).safeApprove(unirouter, uint256(-1));
         IERC20(wbtc).safeApprove(wbtcPool, uint256(-1));
         IERC20(wbtcPool).safeApprove(wbtcPoolStaking, uint256(-1));
@@ -57,14 +55,6 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         return protected;
     }
 
-  //  function depositLockRemaining() public view returns (uint256) {
-   //     uint256 timeDeposited = IHegicWbtcPool(wbtcPool).lastProvideTimestamp(address(this));
-   //     uint256 timeLock = IHegicWbtcPool(wbtcPool).lockupPeriod().add(1 days);
-  //      uint256 timeUnlocked = block.timestamp;
-//
-   //     return (timeUnlocked).sub((timeLock).add(timeDeposited));
-  //  }
-
     function withdrawLockRemaining() public view returns (uint256) {
         uint256 timeDeposited = IHegicWbtcPool(wbtcPool).lastProvideTimestamp(address(this));
         uint256 timeLock = IHegicWbtcPool(wbtcPool).lockupPeriod();
@@ -78,62 +68,56 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         return balanceOfWant().add(balanceOfStake()).add(balanceOfPool()).add(wbtcFutureProfit());
     }
 
-    function prepareReturn(uint256 _debtOutstanding) internal override returns (uint256 _profit) {
+    function prepareReturn(uint256 _debtOutstanding) internal override returns (uint256 _profit, uint256 _loss, uint256 _debtPayment) {
        // We might need to return want to the vault
         if (_debtOutstanding > 0) {
-           liquidatePosition(_debtOutstanding);
+           uint256 _amountFreed = liquidatePosition(_debtOutstanding);
+           _debtPayment = Math.min(_amountFreed, _debtOutstanding);
         }
 
-        // Update reserve with the available want so it's not considered profit
-        setReserve(balanceOfWant().sub(_debtOutstanding));
+        uint256 balanceOfWantBefore = balanceOfWant();
 
         // Claim profit only when available
-        uint256 hegicProfit = hegicFutureProfit();
-        if (hegicProfit > 0) {
+        uint256 rHegicProfit = rHegicFutureProfit();
+        if (rHegicProfit > 0) {
             IHegicWbtcPoolStaking(wbtcPoolStaking).getReward();
 
             // swap rhegic available in the contract for wbtc
-            uint256 _hegicBalance = IERC20(rHegic).balanceOf(address(this));
-            _swap(_hegicBalance);
+            uint256 _rHegicBalance = IERC20(rHegic).balanceOf(address(this));
+            _swap(_rHegicBalance);
         }
 
         // Final profit is want generated in the swap if wbtcProfit > 0
-        _profit = balanceOfWant().sub(getReserve());
+        _profit = balanceOfWant().sub(balanceOfWantBefore);
     }
 
 
     // adjusts position. Will not deposit if timelock check fails.
     function adjustPosition(uint256 _debtOutstanding) internal override {
        //emergency exit is dealt with in prepareReturn
-        if (emergencyExit) {
-          return;
-       }
+          if (emergencyExit) {
+            return;
+         }
 
-        // Reset the reserve value before
-        setReserve(0);
-
-       // Invest the rest of the want
-       uint256 _wantAvailable = balanceOfWant().sub(_debtOutstanding);
-      // uint256 depositLock = depositLockRemaining();
-       // if (depositLock <= 0 ) {
-            if (_wantAvailable > 0) {
-                uint256 _availableFunds = address(this).balance;
-                //TODO: make sure approvals are properly set up in the constructor
-                IHegicWbtcPool(wbtcPool).provide(_availableFunds, 0);
-                uint256 writeWbtc = IERC20(wbtcPool).balanceOf(address(this));
-                IHegicWbtcPoolStaking(wbtcPoolStaking).stake(writeWbtc);
-            }
-        //}
+        // Invest the rest of the want
+        uint256 _wantAvailable = balanceOfWant().sub(_debtOutstanding);
+        if (_wantAvailable > 0) {
+            uint256 _availableFunds = address(this).balance;
+            //TODO: make sure approvals are properly set up in the constructor
+            IHegicWbtcPool(wbtcPool).provide(_availableFunds, 0);
+            uint256 writeWbtc = IERC20(wbtcPool).balanceOf(address(this));
+            IHegicWbtcPoolStaking(wbtcPoolStaking).stake(writeWbtc);
+        }
     }
 
     // N.B. this will only work so long as the various contracts are not timelocked
     // each deposit into the WBTC pool restarts the 14 day counter on the entire value.
         // we will have to include a deposit lockout for lockupPeriod()+1 days to allow exiting position
-    function exitPosition() internal override {
+    function exitPosition() internal override returns (uint256 _loss, uint256 _debtPayment) {
         uint256 writeWbtc = IERC20(wbtcPool).balanceOf(address(this));
         uint256 _timeLock = withdrawLockRemaining();
         if (_timeLock <= 0) {
-            uint256 writeBurn = (writeWbtc).add(1);
+            uint256 writeBurn = writeWbtc.add(1);
             IHegicWbtcPoolStaking(wbtcPoolStaking).exit();
             IHegicWbtcPool(wbtcPool).withdraw(writeWbtc, writeBurn);
         }
@@ -183,21 +167,21 @@ contract StrategyWbtcHegicLP is BaseStrategy {
 
     // calculates the Wbtc that earned rHegic is worth
     function wbtcFutureProfit() public view returns (uint256) {
-        uint256 hegicProfit = hegicFutureProfit();
-        if (hegicProfit == 0) {
+        uint256 rHegicProfit = rHegicFutureProfit();
+        if (rHegicProfit == 0) {
             return 0;
         }
 
         address[] memory path = new address[](2);
         path[0] = address(0x47C0aD2aE6c0Ed4bcf7bc5b380D7205E89436e84); // rHegic
         path[1] = address(want);
-        uint256[] memory amounts = Uni(unirouter).getAmountsOut(hegicProfit, path);
+        uint256[] memory amounts = Uni(unirouter).getAmountsOut(rHegicProfit, path);
 
         return amounts[amounts.length - 1];
     }
 
     // returns (r)Hegic earned by the LP
-    function hegicFutureProfit() public view returns (uint256) {
+    function rHegicFutureProfit() public view returns (uint256) {
         return IHegicWbtcPoolStaking(wbtcPoolStaking).earned(address(this));
     }
 
@@ -235,4 +219,3 @@ contract StrategyWbtcHegicLP is BaseStrategy {
     }
 
 }
-

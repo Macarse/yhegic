@@ -10,7 +10,7 @@ def xtest_tend_trigger(strategy):
 
 def test_harvest_trigger_when_profit(gov, vault, hegic, hegicStaking, strategy):
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
-    vault.addStrategy(strategy, Wei("888000 ether"), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, Wei("888000 ether"), 0, 0, {"from": gov})
     vault.deposit(Wei("888000 ether"), {"from": gov})
     strategy.harvest()
     assert hegicStaking.balanceOf(strategy) == 1
@@ -21,7 +21,7 @@ def test_harvest_trigger_when_profit(gov, vault, hegic, hegicStaking, strategy):
 
 def test_harvest_trigger_without_profit(gov, vault, hegic, hegicStaking, strategy):
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
-    vault.addStrategy(strategy, Wei("888000 ether"), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, Wei("888000 ether"), 0, 0, {"from": gov})
     vault.deposit(Wei("888000 ether"), {"from": gov})
     strategy.harvest()
     assert hegicStaking.balanceOf(strategy) == 1
@@ -30,7 +30,7 @@ def test_harvest_trigger_without_profit(gov, vault, hegic, hegicStaking, strateg
 
 def test_harvest_trigger_with_profit(gov, vault, hegic, hegicStaking, strategy):
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
-    vault.addStrategy(strategy, Wei("888000 ether"), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, Wei("888000 ether"), 0, 0, {"from": gov})
     vault.deposit(Wei("888000 ether"), {"from": gov})
     strategy.harvest()
     assert hegicStaking.balanceOf(strategy) == 1

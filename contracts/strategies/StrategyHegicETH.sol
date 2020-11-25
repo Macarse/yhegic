@@ -13,7 +13,7 @@ import {BaseStrategy, StrategyParams} from "@yearnvaults/contracts/BaseStrategy.
 import "../../interfaces/hegic/IHegicStaking.sol";
 import "../../interfaces/uniswap/Uni.sol";
 
-contract StrategyHegic is BaseStrategy {
+contract StrategyHegicETH is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
     using SafeMath for uint256;
@@ -22,7 +22,7 @@ contract StrategyHegic is BaseStrategy {
     address public hegicStaking;
     uint256 public constant LOT_PRICE = 888e21;
     address public unirouter;
-    string public constant override name = "StrategyHegic";
+    string public constant override name = "StrategyHegicETH";
 
     constructor(
         address _vault,
@@ -48,26 +48,24 @@ contract StrategyHegic is BaseStrategy {
         return balanceOfWant().add(balanceOfStake()).add(hegicFutureProfit());
     }
 
-    function prepareReturn(uint256 _debtOutstanding) internal override returns (uint256 _profit) {
+    function prepareReturn(uint256 _debtOutstanding) internal override returns (uint256 _profit, uint256 _loss, uint256 _debtPayment) {
         // We might need to return want to the vault
         if (_debtOutstanding > 0) {
-            liquidatePosition(_debtOutstanding);
+            uint256 _amountFreed = liquidatePosition(_debtOutstanding);
+            _debtPayment = Math.min(_amountFreed, _debtOutstanding);
         }
 
-        // Update reserve with the available want so it's not considered profit
-        setReserve(balanceOfWant().sub(_debtOutstanding));
+        uint256 balanceOfWantBefore = balanceOfWant();
 
         // Claim profit only when available
         uint256 ethProfit = ethFutureProfit();
         if (ethProfit > 0) {
             IHegicStaking(hegicStaking).claimProfit();
-
-            // swap eth available in the contract for hegic
             _swap(address(this).balance);
         }
 
         // Final profit is want generated in the swap if ethProfit > 0
-        _profit = balanceOfWant().sub(getReserve());
+        _profit = balanceOfWant().sub(balanceOfWantBefore);
     }
 
     function adjustPosition(uint256 _debtOutstanding) internal override {
@@ -75,9 +73,6 @@ contract StrategyHegic is BaseStrategy {
         if (emergencyExit) {
             return;
         }
-
-        // Reset the reserve value before
-        setReserve(0);
 
         // Invest the rest of the want
         uint256 _wantAvailable = balanceOfWant().sub(_debtOutstanding);
@@ -88,7 +83,7 @@ contract StrategyHegic is BaseStrategy {
         }
     }
 
-    function exitPosition() internal override {
+    function exitPosition() internal override returns (uint256 _loss, uint256 _debtPayment) {
         uint256 stakes = IERC20(hegicStaking).balanceOf(address(this));
         IHegicStaking(hegicStaking).sell(stakes);
     }
@@ -99,8 +94,7 @@ contract StrategyHegic is BaseStrategy {
             _withdrawSome(_amountNeeded.sub(balanceOfWant()));
         }
 
-        // Since we might free more than needed, let's send back the min
-        _amountFreed = Math.min(balanceOfWant(), _amountNeeded);
+        _amountFreed = balanceOfWant();
     }
 
     function _withdrawSome(uint256 _amount) internal returns (uint256) {
