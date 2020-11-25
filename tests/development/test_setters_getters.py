@@ -5,11 +5,11 @@ from brownie import Wei
 
 def test_min_deposit(vault, gov, hegic, hegicStaking, strategy):
     # Minimal constructor test
-    assert strategy.name() == "StrategyHegic"
+    assert strategy.name() == "StrategyHegicETH"
 
     # Send 1 hegic which shouldn't be enough to buy a lot
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
-    vault.addStrategy(strategy, hegic.balanceOf(gov), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, hegic.balanceOf(gov), 0, 0, {"from": gov})
     vault.deposit(Wei("1 ether"), {"from": gov})
 
     strategy.harvest()
@@ -18,7 +18,7 @@ def test_min_deposit(vault, gov, hegic, hegicStaking, strategy):
 
 
 def test_initial_balances(gov, hegic, hegicStaking, vault, strategy):
-    vault.addStrategy(strategy, hegic.balanceOf(gov), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, hegic.balanceOf(gov), 0, 0, {"from": gov})
 
     assert strategy.balanceOfWant() == 0
     assert strategy.balanceOfStake() == 0
@@ -28,7 +28,7 @@ def test_initial_balances(gov, hegic, hegicStaking, vault, strategy):
 
 def test_balances(gov, hegic, hegicStaking, vault, strategy):
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
-    vault.addStrategy(strategy, hegic.balanceOf(gov), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, hegic.balanceOf(gov), 0, 0, {"from": gov})
 
     # deposit 888001 in total to test
     vault.deposit(Wei("888001 ether"), {"from": gov})

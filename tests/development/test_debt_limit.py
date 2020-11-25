@@ -6,7 +6,7 @@ def test_increasing_debt_limit(gov, hegic, hegicStaking, vault, strategy):
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
 
     # Start with a 888k debt limit
-    vault.addStrategy(strategy, Wei("888000 ether"), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, Wei("888000 ether"), 0, 0, {"from": gov})
 
     # deposit 888001 in total to test
     vault.deposit(Wei("888000 ether"), {"from": gov})
@@ -29,7 +29,7 @@ def test_decrease_debt_limit(gov, hegic, hegicStaking, vault, strategy):
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
 
     # Start with a 888k * 2 debt limit
-    vault.addStrategy(strategy, Wei("1776000 ether"), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, Wei("1776000 ether"), 0, 0, {"from": gov})
 
     # Depositing 888k * 2 should buy two lots
     vault.deposit(Wei("1776000 ether"), {"from": gov})

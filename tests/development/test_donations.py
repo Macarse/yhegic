@@ -6,9 +6,7 @@ def test_hegic_donations(gov, vault, hegic, hegicStaking, strategy):
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
     hegic.approve(gov, 2 ** 256 - 1, {"from": gov})
 
-    vault.addStrategy(
-        strategy, Wei("888000 ether"), 2 ** 256 - 1, 0, {"from": gov},
-    )
+    vault.addStrategy(strategy, Wei("888000 ether"), 0, 0, {"from": gov})
 
     vault.deposit(Wei("888000 ether"), {"from": gov})
 
@@ -18,7 +16,7 @@ def test_hegic_donations(gov, vault, hegic, hegicStaking, strategy):
     assert hegicStaking.balanceOf(strategy) == 1
 
     strategyParams = vault.strategies(strategy).dict()
-    assert strategyParams["totalReturns"] == 0
+    assert strategyParams["totalGain"] == 0
 
     hegicStaking.sendProfit({"value": Wei("1 ether")})
     assert hegicStaking.balanceOf(strategy) == 1
@@ -29,7 +27,7 @@ def test_hegic_donations(gov, vault, hegic, hegicStaking, strategy):
 
     # Donation will not be marked as profit, it will stay in strategy
     # reserves until the next adjustPosition has enough to buy a lot
-    assert strategyParams["totalReturns"] == Wei("3076 ether")
+    assert strategyParams["totalGain"] == Wei("3076 ether")
     assert strategyParams["totalDebt"] == Wei("888000 ether")
     assert hegic.balanceOf(strategy) == Wei("100 ether")
 
@@ -38,15 +36,13 @@ def test_ether_donations(gov, vault, hegic, hegicStaking, strategy):
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
     hegic.approve(gov, 2 ** 256 - 1, {"from": gov})
 
-    vault.addStrategy(
-        strategy, Wei("888000 ether"), 2 ** 256 - 1, 0, {"from": gov},
-    )
+    vault.addStrategy(strategy, Wei("888000 ether"), 0, 0, {"from": gov})
 
     vault.deposit(Wei("888000 ether"), {"from": gov})
     strategy.harvest({"from": gov})
     assert hegicStaking.balanceOf(strategy) == 1
     strategyParams = vault.strategies(strategy).dict()
-    assert strategyParams["totalReturns"] == 0
+    assert strategyParams["totalGain"] == 0
 
     # Send eth directly to the strategy (DONT DO THIS)
     gov.transfer(strategy, Wei("1 ether"))
@@ -59,6 +55,6 @@ def test_ether_donations(gov, vault, hegic, hegicStaking, strategy):
 
     # Donation will be marked as profit, since there will be more
     # eth converted to hegic
-    assert strategyParams["totalReturns"] == Wei("6153 ether")
+    assert strategyParams["totalGain"] == Wei("6153 ether")
     assert strategyParams["totalDebt"] == Wei("888000 ether")
     assert hegic.balanceOf(strategy) == 0

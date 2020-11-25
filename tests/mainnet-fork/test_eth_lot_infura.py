@@ -1,7 +1,7 @@
 import pytest
 
 from brownie import Wei, accounts, Contract, config
-from brownie import StrategyHegic
+from brownie import StrategyHegicETH
 
 
 def test_hegic_strategy_infura(pm):
@@ -24,7 +24,7 @@ def test_hegic_strategy_infura(pm):
         hegic_liquidity, gov, Wei("888000 ether"), {"from": hegic_liquidity}
     )
 
-    Vault = pm(config["dependencies"][-1]).Vault
+    Vault = pm(config["dependencies"][0]).Vault
     yHegic = gov.deploy(Vault, hegic, gov, rewards, "", "")
 
     hegicStaking = Contract.from_explorer(
@@ -34,10 +34,10 @@ def test_hegic_strategy_infura(pm):
         "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", owner=gov
     )  # UNI router v2
 
-    strategy = guardian.deploy(StrategyHegic, yHegic, hegic, hegicStaking, uni)
+    strategy = guardian.deploy(StrategyHegicETH, yHegic, hegic, hegicStaking, uni)
     strategy.setStrategist(strategist)
 
-    yHegic.addStrategy(strategy, Wei("888000 ether"), 2 ** 256 - 1, 50, {"from": gov})
+    yHegic.addStrategy(strategy, Wei("888000 ether"), 0, 50, {"from": gov})
 
     hegic.approve(gov, Wei("1000000 ether"), {"from": gov})
     hegic.transferFrom(gov, bob, Wei("100000 ether"), {"from": gov})

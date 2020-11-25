@@ -15,7 +15,7 @@ def test_migration(
     hegic.approve(vault, 2 ** 256 - 1, {"from": alice})
     vault.deposit(hegic.balanceOf(bob), {"from": bob})
     vault.deposit(hegic.balanceOf(alice), {"from": alice})
-    vault.addStrategy(strategy, Wei("1776000 ether"), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, Wei("1776000 ether"), 0, 0, {"from": gov})
 
     strategy.harvest()
     assert hegicStaking.balanceOf(strategy) == 1

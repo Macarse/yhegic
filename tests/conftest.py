@@ -1,6 +1,6 @@
 import pytest
 from brownie import config
-from brownie import FakeHegic, StrategyHegic, MockHegicStakingEth, MockUni
+from brownie import FakeHegic, StrategyHegicETH, MockHegicStakingEth, MockUni
 
 
 @pytest.fixture
@@ -40,7 +40,7 @@ def hegic(gov):
 
 @pytest.fixture
 def vault(pm, gov, hegic, rewards):
-    Vault = pm(config["dependencies"][-1]).Vault
+    Vault = pm(config["dependencies"][0]).Vault
     yield gov.deploy(Vault, hegic, gov, rewards, "", "")
 
 
@@ -56,7 +56,7 @@ def uni(gov, hegic):
 
 @pytest.fixture
 def strategy(guardian, vault, hegic, hegicStaking, uni, strategist):
-    strategy = guardian.deploy(StrategyHegic, vault, hegic, hegicStaking, uni)
+    strategy = guardian.deploy(StrategyHegicETH, vault, hegic, hegicStaking, uni)
     strategy.setStrategist(strategist)
 
     yield strategy
@@ -64,7 +64,7 @@ def strategy(guardian, vault, hegic, hegicStaking, uni, strategist):
 
 @pytest.fixture
 def strategy2(guardian, vault, hegic, hegicStaking, uni, strategist):
-    strategy = strategist.deploy(StrategyHegic, vault, hegic, hegicStaking, uni)
+    strategy = strategist.deploy(StrategyHegicETH, vault, hegic, hegicStaking, uni)
     strategy.setStrategist(strategist)
 
     yield strategy

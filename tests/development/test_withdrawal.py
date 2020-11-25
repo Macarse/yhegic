@@ -12,7 +12,7 @@ def test_simple_withdrawal_888k(gov, hegic, hegicStaking, vault, strategy, bob, 
     hegic.approve(vault, 2 ** 256 - 1, {"from": bob})
     vault.deposit(hegic.balanceOf(bob), {"from": bob})
 
-    vault.addStrategy(strategy, Wei("888000 ether"), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, Wei("888000 ether"), 0, 0, {"from": gov})
 
     strategy.harvest()
     assert hegicStaking.balanceOf(strategy) == 1
@@ -20,7 +20,8 @@ def test_simple_withdrawal_888k(gov, hegic, hegicStaking, vault, strategy, bob, 
 
     vault.withdraw(Wei("100 ether"), {"from": bob})
     assert hegic.balanceOf(bob) == Wei("100 ether")
-    assert hegic.balanceOf(strategy) == Wei("887900 ether")
+    assert hegic.balanceOf(strategy) == 0
+    assert hegic.balanceOf(vault) == Wei("887900 ether")
 
 
 def test_simple_withdrawal_888001(
@@ -33,7 +34,7 @@ def test_simple_withdrawal_888001(
     hegic.approve(vault, 2 ** 256 - 1, {"from": bob})
     vault.deposit(hegic.balanceOf(bob), {"from": bob})
 
-    vault.addStrategy(strategy, Wei("888001 ether"), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, Wei("888001 ether"), 0, 0, {"from": gov})
 
     strategy.harvest()
     assert hegicStaking.balanceOf(strategy) == 1
@@ -41,7 +42,8 @@ def test_simple_withdrawal_888001(
 
     vault.withdraw(Wei("100 ether"), {"from": bob})
     assert hegic.balanceOf(bob) == Wei("100 ether")
-    assert hegic.balanceOf(strategy) == Wei("887901 ether")
+    assert hegic.balanceOf(strategy) == 0
+    assert hegic.balanceOf(vault) == Wei("887901 ether")
 
 
 def test_simple_withdrawal_1000(gov, hegic, hegicStaking, vault, strategy, bob, alice):
@@ -52,7 +54,7 @@ def test_simple_withdrawal_1000(gov, hegic, hegicStaking, vault, strategy, bob, 
     hegic.approve(vault, 2 ** 256 - 1, {"from": bob})
     vault.deposit(hegic.balanceOf(bob), {"from": bob})
 
-    vault.addStrategy(strategy, Wei("888000 ether"), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, Wei("888000 ether"), 0, 0, {"from": gov})
 
     strategy.harvest()
     assert hegicStaking.balanceOf(strategy) == 0
@@ -60,7 +62,8 @@ def test_simple_withdrawal_1000(gov, hegic, hegicStaking, vault, strategy, bob, 
 
     vault.withdraw(Wei("100 ether"), {"from": bob})
     assert hegic.balanceOf(bob) == Wei("100 ether")
-    assert hegic.balanceOf(strategy) == Wei("900 ether")
+    assert hegic.balanceOf(strategy) == 0
+    assert hegic.balanceOf(vault) == Wei("900 ether")
 
 
 def test_simple_withdrawal_1776001(
@@ -73,7 +76,7 @@ def test_simple_withdrawal_1776001(
     hegic.approve(vault, 2 ** 256 - 1, {"from": bob})
     vault.deposit(hegic.balanceOf(bob), {"from": bob})
 
-    vault.addStrategy(strategy, Wei("1776001 ether"), 2 ** 256 - 1, 0, {"from": gov})
+    vault.addStrategy(strategy, Wei("1776001 ether"), 0, 0, {"from": gov})
 
     strategy.harvest()
     assert hegicStaking.balanceOf(strategy) == 2
