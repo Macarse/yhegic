@@ -111,7 +111,15 @@ contract StrategyWbtcHegicLP is BaseStrategy {
 
     // N.B. this will only work so long as the various contracts are not timelocked
     // each deposit into the WBTC pool restarts the 14 day counter on the entire value.
-    function exitPosition() internal override returns (uint256 _loss, uint256 _debtPayment) {
+    function exitPosition(uint256 _debtOutstanding)
+        internal
+        override
+        returns (
+          uint256 _profit,
+          uint256 _loss,
+          uint256 _debtPayment
+        )
+    {
         uint256 writeWbtc = IERC20(wbtcPool).balanceOf(address(this));
         uint256 _timeLock = withdrawLockRemaining();
         if (_timeLock <= 0) {
