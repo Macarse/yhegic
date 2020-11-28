@@ -70,7 +70,7 @@ contract StrategyHegicWBTC is BaseStrategy {
             _swap(_wbtcBalance);
         }
 
-        // Final profit is want generated in the swap if ethProfit > 0
+        // Final profit is want generated in the swap if wbtcProfit > 0
         _profit = balanceOfWant().sub(balanceOfWantBefore);
     }
 
@@ -144,7 +144,6 @@ contract StrategyHegicWBTC is BaseStrategy {
         path[2] = address(want);
         uint256[] memory amounts = Uni(unirouter).getAmountsOut(wbtcProfit, path);
 
-        //todo: no idea what this bit of code does.
         return amounts[amounts.length - 1];
     }
 

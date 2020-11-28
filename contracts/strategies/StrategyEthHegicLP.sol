@@ -41,7 +41,6 @@ contract StrategyEthHegicLP is BaseStrategy {
         ethPool = _ethPool;
         unirouter = _unirouter;
 
-        // TODO: uncertain if these are set up properly.
         IERC20(rHegic).safeApprove(unirouter, uint256(-1));
         IERC20(ethPool).safeApprove(ethPoolStaking, uint256(-1));
     }
@@ -116,7 +115,6 @@ contract StrategyEthHegicLP is BaseStrategy {
           swapWethtoEth(_wantAvailable);
           uint256 _availableFunds = address(this).balance;
           uint256 _minMint = 0;
-          // make sure approvals are properly set up in the constructor
           IHegicEthPool(ethPool).provide{value: _availableFunds}(_minMint);
           uint256 writeEth = IERC20(ethPool).balanceOf(address(this));
           IHegicEthPoolStaking(ethPoolStaking).stake(writeEth);
@@ -125,7 +123,6 @@ contract StrategyEthHegicLP is BaseStrategy {
 
     // N.B. this will only work so long as the various contracts are not timelocked
     // each deposit into the ETH pool restarts the 14 day counter on the entire value.
-    // we will have to include a deposit lockout for lockupPeriod()+1 days to allow exiting position
     function exitPosition() internal override returns (uint256 _loss, uint256 _debtPayment) {
         uint256 writeEth = IERC20(ethPool).balanceOf(address(this));
         uint256 _timeLock = withdrawLockRemaining();
@@ -166,8 +163,7 @@ contract StrategyEthHegicLP is BaseStrategy {
     }
 
 
-    // it looks like this function transfers not just "want" tokens, but all tokens - including (un)staked writeEth.
-    // I suppose this is only if the _newStrategy is based on the current strat, and isn't a full exit.
+    // this function transfers not just "want" tokens, but all tokens - including (un)staked writeEth.
     function prepareMigration(address _newStrategy) internal override {
         want.transfer(_newStrategy, balanceOfWant());
         IERC20(ethPool).transfer(_newStrategy, IERC20(ethPool).balanceOf(address(this)));

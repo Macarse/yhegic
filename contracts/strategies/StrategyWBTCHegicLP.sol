@@ -103,7 +103,6 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         uint256 _wantAvailable = balanceOfWant().sub(_debtOutstanding);
         if (_wantAvailable > 0) {
             uint256 _availableFunds = address(this).balance;
-            //TODO: make sure approvals are properly set up in the constructor
             IHegicWbtcPool(wbtcPool).provide(_availableFunds, 0);
             uint256 writeWbtc = IERC20(wbtcPool).balanceOf(address(this));
             IHegicWbtcPoolStaking(wbtcPoolStaking).stake(writeWbtc);
@@ -112,7 +111,6 @@ contract StrategyWbtcHegicLP is BaseStrategy {
 
     // N.B. this will only work so long as the various contracts are not timelocked
     // each deposit into the WBTC pool restarts the 14 day counter on the entire value.
-        // we will have to include a deposit lockout for lockupPeriod()+1 days to allow exiting position
     function exitPosition() internal override returns (uint256 _loss, uint256 _debtPayment) {
         uint256 writeWbtc = IERC20(wbtcPool).balanceOf(address(this));
         uint256 _timeLock = withdrawLockRemaining();
@@ -148,8 +146,7 @@ contract StrategyWbtcHegicLP is BaseStrategy {
     }
 
 
-    // it looks like this function transfers not just "want" tokens, but all tokens - including (un)staked writeWbtc.
-    // I suppose this is only if the _newStrategy is based on the current strat, and isn't a full exit.
+    // this function transfers not just "want" tokens, but all tokens - including (un)staked writeWbtc.
     function prepareMigration(address _newStrategy) internal override {
         want.transfer(_newStrategy, balanceOfWant());
         IERC20(wbtcPool).transfer(_newStrategy, IERC20(wbtcPool).balanceOf(address(this)));
