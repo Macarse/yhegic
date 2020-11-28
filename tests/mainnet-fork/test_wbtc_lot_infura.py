@@ -4,6 +4,7 @@ from brownie import Wei, accounts, Contract, config
 from brownie import StrategyHegicWBTC
 
 
+@pytest.mark.require_network("mainnet-fork")
 def test_hegic_strategy_infura(pm):
     hegic_liquidity = accounts.at(
         "0x736f85bf359e3e2db736d395ed8a4277123eeee1", force=True

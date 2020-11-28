@@ -89,9 +89,18 @@ contract StrategyHegicWBTC is BaseStrategy {
         }
     }
 
-    function exitPosition() internal override returns (uint256 _loss, uint256 _debtPayment) {
+    function exitPosition(uint256 _debtOutstanding)
+        internal
+        override
+        returns (
+          uint256 _profit,
+          uint256 _loss,
+          uint256 _debtPayment
+        )
+    {
         uint256 stakes = IERC20(hegicStaking).balanceOf(address(this));
         IHegicStaking(hegicStaking).sell(stakes);
+        return prepareReturn(_debtOutstanding);
     }
 
     function liquidatePosition(uint256 _amountNeeded) internal override returns (uint256 _amountFreed) {

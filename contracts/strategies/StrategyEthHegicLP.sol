@@ -53,16 +53,22 @@ contract StrategyEthHegicLP is BaseStrategy {
         protected[0] = rHegic;
         protected[1] = ethPool;
         protected[2] = ethPoolStaking;
+
+        // These two are not necessary
+        // want == weth and weth is want which is protected in the super method
         protected[3] = weth;
         protected[4] = address(want);
         return protected;
     }
 
+    // Change this method to return bool
+    // basically, return block.timestamp > timeDeposited+timeLock
     function withdrawLockRemaining() public view returns (uint256) {
         uint256 timeDeposited = IHegicEthPool(ethPool).lastProvideTimestamp(address(this));
         uint256 timeLock = IHegicEthPool(ethPool).lockupPeriod();
         uint256 timeUnlocked = block.timestamp;
 
+        //
         return (timeUnlocked).sub((timeLock).add(timeDeposited));
     }
 
@@ -115,6 +121,7 @@ contract StrategyEthHegicLP is BaseStrategy {
           swapWethtoEth(_wantAvailable);
           uint256 _availableFunds = address(this).balance;
           uint256 _minMint = 0;
+          // make sure approvals are properly set up in the constructor
           IHegicEthPool(ethPool).provide{value: _availableFunds}(_minMint);
           uint256 writeEth = IERC20(ethPool).balanceOf(address(this));
           IHegicEthPoolStaking(ethPoolStaking).stake(writeEth);
@@ -123,9 +130,21 @@ contract StrategyEthHegicLP is BaseStrategy {
 
     // N.B. this will only work so long as the various contracts are not timelocked
     // each deposit into the ETH pool restarts the 14 day counter on the entire value.
-    function exitPosition() internal override returns (uint256 _loss, uint256 _debtPayment) {
+    function exitPosition(uint256 _debtOutstanding)
+        internal
+        override
+        returns (
+          uint256 _profit,
+          uint256 _loss,
+          uint256 _debtPayment
+        )
+    {
+        // Shouldn't we revert if we try to exitPosition and there is a timelock?
+
         uint256 writeEth = IERC20(ethPool).balanceOf(address(this));
         uint256 _timeLock = withdrawLockRemaining();
+
+        // timelock will never be negative
         if (_timeLock <= 0) {
             uint256 writeBurn = writeEth.add(1);
             IHegicEthPoolStaking(ethPoolStaking).exit();
