@@ -49,27 +49,18 @@ contract StrategyEthHegicLP is BaseStrategy {
     receive() external payable {}
 
     function protectedTokens() internal override view returns (address[] memory) {
-        address[] memory protected = new address[](5);
+        address[] memory protected = new address[](3);
         protected[0] = rHegic;
         protected[1] = ethPool;
         protected[2] = ethPoolStaking;
 
-        // These two are not necessary
-        // want == weth and weth is want which is protected in the super method
-        protected[3] = weth;
-        protected[4] = address(want);
         return protected;
     }
 
-    // Change this method to return bool
-    // basically, return block.timestamp > timeDeposited+timeLock
-    function withdrawLockRemaining() public view returns (uint256) {
+    function withdrawUnlocked() public view returns (bool) {
         uint256 timeDeposited = IHegicEthPool(ethPool).lastProvideTimestamp(address(this));
         uint256 timeLock = IHegicEthPool(ethPool).lockupPeriod();
-        uint256 timeUnlocked = block.timestamp;
-
-        //
-        return (timeUnlocked).sub((timeLock).add(timeDeposited));
+        return (block.timestamp > timeDeposited.add(timeLock));
     }
 
     // returns sum of all assets, realized and unrealized
@@ -101,7 +92,7 @@ contract StrategyEthHegicLP is BaseStrategy {
     }
 
 
-    // adjusts position. Will not deposit if timelock check fails.
+    // adjusts position.
     function adjustPosition(uint256 _debtOutstanding) internal override {
        //emergency exit is dealt with in prepareReturn
         if (emergencyExit) {
@@ -121,7 +112,7 @@ contract StrategyEthHegicLP is BaseStrategy {
           swapWethtoEth(_wantAvailable);
           uint256 _availableFunds = address(this).balance;
           uint256 _minMint = 0;
-          // make sure approvals are properly set up in the constructor
+
           IHegicEthPool(ethPool).provide{value: _availableFunds}(_minMint);
           uint256 writeEth = IERC20(ethPool).balanceOf(address(this));
           IHegicEthPoolStaking(ethPoolStaking).stake(writeEth);
@@ -141,16 +132,24 @@ contract StrategyEthHegicLP is BaseStrategy {
     {
         // Shouldn't we revert if we try to exitPosition and there is a timelock?
 
-        uint256 writeEth = IERC20(ethPool).balanceOf(address(this));
-        uint256 _timeLock = withdrawLockRemaining();
+        uint256 writeEth = IHegicEthPool(ethPool).shareOf(address(this));
+        uint256 stakingBalance = IHegicEthPoolStaking(ethPoolStaking).balanceOf(address(this));
 
-        // timelock will never be negative
-        if (_timeLock <= 0) {
-            uint256 writeBurn = writeEth.add(1);
+        // by doing this before the timelock check, we will trigger the timelock
+        if (stakingBalance > 0) {
             IHegicEthPoolStaking(ethPoolStaking).exit();
+        }
+
+        // timelock will never be negative now that we've changed it to boolean
+        bool unlocked = withdrawUnlocked();
+        if (unlocked = true) {
+            uint256 writeBurn = IERC20(ethPool).balanceOf(address(this));
             IHegicEthPool(ethPool).withdraw(writeEth, writeBurn);
             uint256 _ethBalance = address(this).balance;
             swapEthtoWeth(_ethBalance);
+        }
+        else {
+            revert("funds timelocked");
         }
     }
 
@@ -167,18 +166,19 @@ contract StrategyEthHegicLP is BaseStrategy {
 
 
     // withdraw a fraction, if not timelocked
-    function _withdrawSome(uint256 _amount) internal returns (string memory) {
+    function _withdrawSome(uint256 _amount) internal returns (uint256) {
         uint256 _amountWriteEth = (_amount).mul(writeEthRatio());
         // this should mean that we always withdraw the amount of writeEth we take from staking
-        uint256 _amountBurn = (_amountWriteEth).add(1);
-        if (withdrawLockRemaining() <= 0) {
-            IHegicEthPoolStaking(ethPoolStaking).withdraw(_amountWriteEth);
-            IHegicEthPool(ethPool).withdraw(_amountWriteEth, _amountBurn);
+        IHegicEthPoolStaking(ethPoolStaking).withdraw(_amountWriteEth);
+        uint256 _amountBurn = IERC20(ethPool).balanceOf(address(this));
+        bool unlocked = withdrawUnlocked();
+        if (unlocked = true) {
+            IHegicEthPool(ethPool).withdraw(_amount, _amountBurn);
             // convert eth to want
             uint256 _ethBalance = address(this).balance;
             swapEthtoWeth(_ethBalance);
         }
-        else return "withdrawal timelocked";
+        else {revert("withdrawal timelocked");}
     }
 
 
