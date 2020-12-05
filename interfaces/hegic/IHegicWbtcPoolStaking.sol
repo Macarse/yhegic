@@ -14,4 +14,8 @@ interface IHegicWbtcPoolStaking {
     function earned(address) external view returns(uint256);
 
     function balanceOf(address) external view returns (uint256);
+
+    function userRewardPerTokenPaid(address) external view returns (uint256);
+
+    function totalSupply() external view returns (uint256);
 }

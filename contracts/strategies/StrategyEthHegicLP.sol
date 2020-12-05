@@ -265,4 +265,12 @@ contract StrategyEthHegicLP is BaseStrategy {
         }
     }
 
+    // calculates rewards rate in tokens per year for this address
+    function calculateRate() public view returns(uint256) {
+        uint256 rate = IHegicEthPoolStaking(ethPoolStaking).userRewardPerTokenPaid(address(this));
+        uint256 supply = IHegicEthPoolStaking(ethPoolStaking).totalSupply();
+        uint256 ROI = IERC20(ethPoolStaking).balanceOf(address(this)).div(supply).mul(rate).mul((31536000));
+        return ROI;
+    }
+
 }
