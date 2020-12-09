@@ -83,8 +83,6 @@ def test_rhegic_strategy_infura(pm, chain):
     assert ethPool.balanceOf(strategy) == 0
     assert ethPoolStaking.balanceOf(strategy) > 0
 
-    assert 1 == 2
-
     # TODO: the below grabs it from the protocol, per the above comment.
     rHegic.balanceOf(strategy)
     chain.sleep(3600*24*15)

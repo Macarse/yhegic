@@ -48,6 +48,21 @@ contract StrategyEthHegicLP is BaseStrategy {
     // for the weth->eth swap
     receive() external payable {}
 
+    bool public withdrawFlag = false;
+
+
+    // function to designate when vault is in withdraw-state.
+    // when bool is set to false, deposits and harvests are enabled
+    // when bool is set to true, deposits and harvests are locked so the withdraw timelock can count down
+    // setting bool to one also triggers the withdraw from staking and starts the 14 day countdown
+    function setWithdrawal(bool _withdrawFlag) external {
+        require(msg.sender == strategist, "!authorized");
+        withdrawFlag = _withdrawFlag;
+        if (withdrawFlag == true) {
+            IHegicEthPoolStaking(ethPoolStaking).exit();
+        }
+    }
+
     function protectedTokens() internal override view returns (address[] memory) {
         address[] memory protected = new address[](3);
         protected[0] = rHegic;
@@ -69,7 +84,7 @@ contract StrategyEthHegicLP is BaseStrategy {
     }
 
     function prepareReturn(uint256 _debtOutstanding) internal override returns (uint256 _profit, uint256 _loss, uint256 _debtPayment) {
-       // We might need to return want to the vault
+        // We might need to return want to the vault
         if (_debtOutstanding > 0) {
            uint256 _amountFreed = liquidatePosition(_debtOutstanding);
            _debtPayment = Math.min(_amountFreed, _debtOutstanding);
@@ -99,6 +114,9 @@ contract StrategyEthHegicLP is BaseStrategy {
           return;
        }
 
+        // check the withdraw flag first before depositing anything
+        require (withdrawFlag == false, "!vault withdrawing");
+
         // turn eth to weth - just so that funds are held in weth instead of eth.
         uint256 _ethBalance = address(this).balance;
         if (_ethBalance > 0) {
@@ -121,6 +139,7 @@ contract StrategyEthHegicLP is BaseStrategy {
 
     // N.B. this will only work so long as the various contracts are not timelocked
     // each deposit into the ETH pool restarts the 14 day counter on the entire value.
+    // when this function withdraws
     function exitPosition(uint256 _debtOutstanding)
         internal
         override
@@ -130,27 +149,26 @@ contract StrategyEthHegicLP is BaseStrategy {
           uint256 _debtPayment
         )
     {
-        // Shouldn't we revert if we try to exitPosition and there is a timelock?
+        // we should revert if we try to exitPosition and there is a timelock
+        require (withdrawFlag == true, "!vault in deposit mode");
 
-        uint256 writeEth = IHegicEthPool(ethPool).shareOf(address(this));
-        uint256 stakingBalance = IHegicEthPoolStaking(ethPoolStaking).balanceOf(address(this));
+        // this should verify if 14 day countdown is completed
+        bool unlocked = withdrawUnlocked();
+        require (unlocked == true, "!writeEth timelocked");
 
         // by doing this before the timelock check, we will trigger the timelock
+        // this should be zero - see withdrawFlag bool setting
+        uint256 stakingBalance = IHegicEthPoolStaking(ethPoolStaking).balanceOf(address(this));
         if (stakingBalance > 0) {
             IHegicEthPoolStaking(ethPoolStaking).exit();
         }
 
-        // timelock will never be negative now that we've changed it to boolean
-        bool unlocked = withdrawUnlocked();
-        if (unlocked = true) {
-            uint256 writeBurn = IERC20(ethPool).balanceOf(address(this));
-            IHegicEthPool(ethPool).withdraw(writeEth, writeBurn);
-            uint256 _ethBalance = address(this).balance;
-            swapEthtoWeth(_ethBalance);
-        }
-        else {
-            revert("funds timelocked");
-        }
+        // the rest of the logic here will withdraw entire sum of the ethPool
+        uint256 writeEth = IHegicEthPool(ethPool).shareOf(address(this));
+        uint256 writeBurn = IERC20(ethPool).balanceOf(address(this));
+        IHegicEthPool(ethPool).withdraw(writeEth, writeBurn);
+        uint256 _ethBalance = address(this).balance;
+        swapEthtoWeth(_ethBalance);
     }
 
     //this math only deals with want, which is weth.
@@ -167,18 +185,21 @@ contract StrategyEthHegicLP is BaseStrategy {
 
     // withdraw a fraction, if not timelocked
     function _withdrawSome(uint256 _amount) internal returns (uint256) {
-        uint256 _amountWriteEth = (_amount).mul(writeEthRatio());
-        // this should mean that we always withdraw the amount of writeEth we take from staking
-        IHegicEthPoolStaking(ethPoolStaking).withdraw(_amountWriteEth);
-        uint256 _amountBurn = IERC20(ethPool).balanceOf(address(this));
+        // we should revert if we try to exitPosition and there is a timelock
+        require (withdrawFlag == true, "!vault in deposit mode");
+
+        // this should verify if 14 day countdown is completed
         bool unlocked = withdrawUnlocked();
-        if (unlocked = true) {
-            IHegicEthPool(ethPool).withdraw(_amount, _amountBurn);
-            // convert eth to want
-            uint256 _ethBalance = address(this).balance;
-            swapEthtoWeth(_ethBalance);
-        }
-        else {revert("withdrawal timelocked");}
+        require (unlocked == true, "!writeEth timelocked");
+
+        uint256 _amountWriteEth = (_amount).mul(writeEthRatio());
+        // staking should be empty if withdrawFlag == true
+        uint256 _amountBurn = IERC20(ethPool).balanceOf(address(this));
+
+        IHegicEthPool(ethPool).withdraw(_amount, _amountBurn);
+        // convert eth to want
+        uint256 _ethBalance = address(this).balance;
+        swapEthtoWeth(_ethBalance);
     }
 
 
@@ -269,8 +290,8 @@ contract StrategyEthHegicLP is BaseStrategy {
     function calculateRate() public view returns(uint256) {
         uint256 rate = IHegicEthPoolStaking(ethPoolStaking).userRewardPerTokenPaid(address(this));
         uint256 supply = IHegicEthPoolStaking(ethPoolStaking).totalSupply();
-        uint256 ROI = IERC20(ethPoolStaking).balanceOf(address(this)).div(supply).mul(rate).mul((31536000));
-        return ROI;
+        uint256 roi = IERC20(ethPoolStaking).balanceOf(address(this)).div(supply).mul(rate).mul((31536000));
+        return roi;
     }
 
 }

@@ -89,8 +89,6 @@ def test_loss(pm, chain):
     chain.sleep(3600*24*15) # 15 days
     chain.mine(1)
 
-    assert 1 == 2
-
     # This should work by doing it by hand since exitPosition is not working
     #strategy.setEmergencyExit({"from": gov})
     #strategy.harvest({"from": gov})
