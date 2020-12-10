@@ -46,21 +46,18 @@ contract StrategyWbtcHegicLP is BaseStrategy {
     }
 
     function protectedTokens() internal override view returns (address[] memory) {
-        address[] memory protected = new address[](5);
+        address[] memory protected = new address[](3);
         protected[0] = rHegic;
         protected[1] = wbtcPool;
         protected[2] = wbtcPoolStaking;
-        protected[3] = wbtc;
-        protected[4] = address(want);
+
         return protected;
     }
 
-    function withdrawLockRemaining() public view returns (uint256) {
+    function withdrawUnlocked() public view returns (bool) {
         uint256 timeDeposited = IHegicWbtcPool(wbtcPool).lastProvideTimestamp(address(this));
         uint256 timeLock = IHegicWbtcPool(wbtcPool).lockupPeriod();
-        uint256 timeUnlocked = block.timestamp;
-
-        return (timeUnlocked).sub((timeLock).add(timeDeposited));
+        return (block.timestamp > timeDeposited.add(timeLock));
     }
 
     // returns sum of all assets, realized and unrealized
@@ -92,12 +89,12 @@ contract StrategyWbtcHegicLP is BaseStrategy {
     }
 
 
-    // adjusts position. Will not deposit if timelock check fails.
+    // adjusts position.
     function adjustPosition(uint256 _debtOutstanding) internal override {
        //emergency exit is dealt with in prepareReturn
-          if (emergencyExit) {
-            return;
-         }
+        if (emergencyExit) {
+          return;
+       }
 
         // Invest the rest of the want
         uint256 _wantAvailable = balanceOfWant().sub(_debtOutstanding);
@@ -120,12 +117,25 @@ contract StrategyWbtcHegicLP is BaseStrategy {
           uint256 _debtPayment
         )
     {
-        uint256 writeWbtc = IERC20(wbtcPool).balanceOf(address(this));
-        uint256 _timeLock = withdrawLockRemaining();
-        if (_timeLock <= 0) {
-            uint256 writeBurn = writeWbtc.add(1);
+        // Shouldn't we revert if we try to exitPosition and there is a timelock?
+
+        uint256 writeWbtc = IHegicWbtcPool(wbtcPool).shareOf(address(this));
+        uint256 stakingBalance = IHegicWbtcPoolStaking(wbtcPoolStaking).balanceOf(address(this));
+
+        // by doing this before the timelock check, we will trigger the timelock
+        if (stakingBalance > 0) {
             IHegicWbtcPoolStaking(wbtcPoolStaking).exit();
+        }
+
+        // timelock will never be negative now that we've changed it to boolean
+        bool unlocked = withdrawUnlocked();
+        if (unlocked = true) {
+            uint256 writeBurn = IERC20(wbtcPool).balanceOf(address(this));
             IHegicWbtcPool(wbtcPool).withdraw(writeWbtc, writeBurn);
+            uint256 _wbtcBalance = address(this).balance;
+        }
+        else {
+            revert("funds timelocked");
         }
     }
 
@@ -142,15 +152,17 @@ contract StrategyWbtcHegicLP is BaseStrategy {
 
 
     // withdraw a fraction, if not timelocked
-    function _withdrawSome(uint256 _amount) internal returns (string memory) {
+    function _withdrawSome(uint256 _amount) internal returns (uint256) {
         uint256 _amountWriteWbtc = (_amount).mul(writeWbtcRatio());
         // this should mean that we always withdraw the amount of writeWbtc we take from staking
-        uint256 _amountBurn = (_amountWriteWbtc).add(1);
-        if (withdrawLockRemaining() <= 0) {
-            IHegicWbtcPoolStaking(wbtcPoolStaking).withdraw(_amountWriteWbtc);
-            IHegicWbtcPool(wbtcPool).withdraw(_amountWriteWbtc, _amountBurn);
+        IHegicWbtcPoolStaking(wbtcPoolStaking).withdraw(_amountWriteWbtc);
+        uint256 _amountBurn = IERC20(wbtcPool).balanceOf(address(this));
+        bool unlocked = withdrawUnlocked();
+        if (unlocked = true) {
+            IHegicWbtcPool(wbtcPool).withdraw(_amount, _amountBurn);
+
         }
-        else return "withdrawal timelocked";
+        else {revert("withdrawal timelocked");}
     }
 
 
@@ -221,6 +233,14 @@ contract StrategyWbtcHegicLP is BaseStrategy {
             rate = 1e3;
         }
         return rate;
+    }
+
+    // calculates rewards rate in tokens per year for this address
+    function calculateRate() public view returns(uint256) {
+        uint256 rate = IHegicWbtcPoolStaking(wbtcPoolStaking).userRewardPerTokenPaid(address(this));
+        uint256 supply = IHegicWbtcPoolStaking(wbtcPoolStaking).totalSupply();
+        uint256 ROI = IERC20(wbtcPoolStaking).balanceOf(address(this)).div(supply).mul(rate).mul((31536000));
+        return ROI;
     }
 
 }
