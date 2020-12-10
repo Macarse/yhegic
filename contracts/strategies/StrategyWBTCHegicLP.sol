@@ -45,6 +45,36 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         IERC20(wbtcPool).safeApprove(wbtcPoolStaking, uint256(-1));
     }
 
+    bool public withdrawFlag = false;
+
+
+    // function to designate when vault is in withdraw-state.
+    // when bool is set to false, deposits and harvests are enabled
+    // when bool is set to true, deposits and harvests are locked so the withdraw timelock can count down
+    // setting bool to one also triggers the withdraw from staking and starts the 14 day countdown
+    function setWithdrawal(bool _withdrawFlag) external {
+        require(msg.sender == strategist || msg.sender == governance() || msg.sender == address(vault), "!authorized");
+        withdrawFlag = _withdrawFlag;
+    }
+
+    // function to unstake writeEth from rewards and start withdrawal process
+    function unstakeAll() external {
+        require(msg.sender == strategist || msg.sender == governance() || msg.sender == address(vault), "!authorized");
+        if (withdrawFlag == true) {
+            IHegicWbtcPoolStaking(ethPoolStaking).exit();
+        }
+    }
+
+    // same as above, but only withdraws a portion and leaves remaining writeEth staked to continue generating rHegic
+    // I imagine unstakeAll will be used more than this
+    function unstakePortion(uint256 _amount) external {
+        require(msg.sender == strategist || msg.sender == governance() || msg.sender == address(vault), "!authorized");
+        if (withdrawFlag == true) {
+            uint256 writeWbtc = _amount.mul(writeWbtcRatio());
+            IHegicWbtcPoolStaking(wbtcPoolStaking).withdraw(writeWbtc);
+        }
+    }
+
     function protectedTokens() internal override view returns (address[] memory) {
         address[] memory protected = new address[](3);
         protected[0] = rHegic;
@@ -96,6 +126,11 @@ contract StrategyWbtcHegicLP is BaseStrategy {
           return;
        }
 
+        // check the withdraw flag first before depositing anything
+        if (withdrawFlag == true) {
+            return;
+        }
+
         // Invest the rest of the want
         uint256 _wantAvailable = balanceOfWant().sub(_debtOutstanding);
         if (_wantAvailable > 0) {
@@ -117,26 +152,23 @@ contract StrategyWbtcHegicLP is BaseStrategy {
           uint256 _debtPayment
         )
     {
-        // Shouldn't we revert if we try to exitPosition and there is a timelock?
+        // we should revert if we try to exitPosition and there is a timelock
+        require (withdrawFlag == true, "!vault in deposit mode");
 
-        uint256 writeWbtc = IHegicWbtcPool(wbtcPool).shareOf(address(this));
+        // this should verify if 14 day countdown is completed
+        bool unlocked = withdrawUnlocked();
+        require (unlocked == true, "!writeEth timelocked");
+
+        // this should be zero - see unstake functions
         uint256 stakingBalance = IHegicWbtcPoolStaking(wbtcPoolStaking).balanceOf(address(this));
-
-        // by doing this before the timelock check, we will trigger the timelock
         if (stakingBalance > 0) {
             IHegicWbtcPoolStaking(wbtcPoolStaking).exit();
         }
 
-        // timelock will never be negative now that we've changed it to boolean
-        bool unlocked = withdrawUnlocked();
-        if (unlocked = true) {
-            uint256 writeBurn = IERC20(wbtcPool).balanceOf(address(this));
-            IHegicWbtcPool(wbtcPool).withdraw(writeWbtc, writeBurn);
-            uint256 _wbtcBalance = address(this).balance;
-        }
-        else {
-            revert("funds timelocked");
-        }
+        // the rest of the logic here will withdraw entire sum of the ethPool
+        uint256 writeWbtc = IHegicWbtcPool(wbtcPool).shareOf(address(this));
+        uint256 writeBurn = IERC20(wbtcPool).balanceOf(address(this));
+        IHegicWbtcPool(wbtcPool).withdraw(writeWbtc, writeBurn);
     }
 
     //this math only deals with want, which is wbtc.
@@ -153,16 +185,19 @@ contract StrategyWbtcHegicLP is BaseStrategy {
 
     // withdraw a fraction, if not timelocked
     function _withdrawSome(uint256 _amount) internal returns (uint256) {
-        uint256 _amountWriteWbtc = (_amount).mul(writeWbtcRatio());
-        // this should mean that we always withdraw the amount of writeWbtc we take from staking
-        IHegicWbtcPoolStaking(wbtcPoolStaking).withdraw(_amountWriteWbtc);
-        uint256 _amountBurn = IERC20(wbtcPool).balanceOf(address(this));
-        bool unlocked = withdrawUnlocked();
-        if (unlocked = true) {
-            IHegicWbtcPool(wbtcPool).withdraw(_amount, _amountBurn);
-
+        // we should revert if we try to exitPosition and there is a timelock
+        if (withdrawFlag == false) {
+            return 0;
         }
-        else {revert("withdrawal timelocked");}
+
+        // this should verify if 14 day countdown is completed
+        bool unlocked = withdrawUnlocked();
+        require (unlocked == true, "!writeWbtc timelocked");
+
+        uint256 _amountWriteWbtc = (_amount).mul(writeWbtcRatio());
+        uint256 _amountBurn = IERC20(wbtcPool).balanceOf(address(this));
+
+        IHegicWbtcPool(wbtcPool).withdraw(_amountWriteWbtc, _amountBurn);
     }
 
 
@@ -239,8 +274,8 @@ contract StrategyWbtcHegicLP is BaseStrategy {
     function calculateRate() public view returns(uint256) {
         uint256 rate = IHegicWbtcPoolStaking(wbtcPoolStaking).userRewardPerTokenPaid(address(this));
         uint256 supply = IHegicWbtcPoolStaking(wbtcPoolStaking).totalSupply();
-        uint256 ROI = IERC20(wbtcPoolStaking).balanceOf(address(this)).div(supply).mul(rate).mul((31536000));
-        return ROI;
+        uint256 roi = IERC20(wbtcPoolStaking).balanceOf(address(this)).div(supply).mul(rate).mul((31536000));
+        return roi;
     }
 
 }
