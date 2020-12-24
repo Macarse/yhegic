@@ -1,12 +1,13 @@
 from pathlib import Path
+import click
 
-from brownie import Strategy, accounts, config, network, project, web3
+from brownie import StrategyHegicETH, accounts, config, network, project, web3
 from eth_utils import is_checksum_address
 
 
 API_VERSION = config["dependencies"][0].split("@")[-1]
 Vault = project.load(
-    Path.home() / ".brownie" / "packages" / config["dependencies"][1]
+    Path.home() / ".brownie" / "packages" / config["dependencies"][0]
 ).Vault
 
 
@@ -25,7 +26,7 @@ def get_address(msg: str) -> str:
 
 def main():
     print(f"You are using the '{network.show_active()}' network")
-    dev = accounts.load("dev")
+    dev = accounts.load(click.prompt("Account", type=click.Choice(accounts.load())))
     print(f"You are using: 'dev' [{dev.address}]")
 
     if input("Is there a Vault for this strategy already? y/[N]: ").lower() != "y":
