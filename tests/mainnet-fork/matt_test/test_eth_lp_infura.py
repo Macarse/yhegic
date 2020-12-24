@@ -85,14 +85,14 @@ def test_rhegic_strategy_infura(pm, chain):
 
     # TODO: the below grabs it from the protocol, per the above comment.
     rHegic.balanceOf(strategy)
-    chain.sleep(3600*24*15)
+    chain.sleep(3600 * 24 * 15)
     chain.mine(1)
 
     ethPoolStaking.getReward({"from": strategy})
     rHegic.balanceOf(strategy)
-    rHegic.approve(strategy, uni, Wei("10000 ether"), {"from":gov})
+    rHegic.approve(strategy, uni, Wei("10000 ether"), {"from": gov})
     # the below harvest doesn't seem to do anything from what I can see
     strategy.harvest({"from": gov})
 
     # We should have made profit
-    assert yEthLP.pricePerShare()/1e18 > 1
+    assert yEthLP.pricePerShare() / 1e18 > 1

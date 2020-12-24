@@ -45,7 +45,7 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         IERC20(wbtcPool).safeApprove(wbtcPoolStaking, uint256(-1));
     }
 
-    function protectedTokens() internal override view returns (address[] memory) {
+    function protectedTokens() internal view override returns (address[] memory) {
         address[] memory protected = new address[](3);
         protected[0] = rHegic;
         protected[1] = wbtcPool;
@@ -61,15 +61,23 @@ contract StrategyWbtcHegicLP is BaseStrategy {
     }
 
     // returns sum of all assets, realized and unrealized
-    function estimatedTotalAssets() public override view returns (uint256) {
+    function estimatedTotalAssets() public view override returns (uint256) {
         return balanceOfWant().add(balanceOfStake()).add(balanceOfPool()).add(wbtcFutureProfit());
     }
 
-    function prepareReturn(uint256 _debtOutstanding) internal override returns (uint256 _profit, uint256 _loss, uint256 _debtPayment) {
-       // We might need to return want to the vault
+    function prepareReturn(uint256 _debtOutstanding)
+        internal
+        override
+        returns (
+            uint256 _profit,
+            uint256 _loss,
+            uint256 _debtPayment
+        )
+    {
+        // We might need to return want to the vault
         if (_debtOutstanding > 0) {
-           uint256 _amountFreed = liquidatePosition(_debtOutstanding);
-           _debtPayment = Math.min(_amountFreed, _debtOutstanding);
+            uint256 _amountFreed = liquidatePosition(_debtOutstanding);
+            _debtPayment = Math.min(_amountFreed, _debtOutstanding);
         }
 
         uint256 balanceOfWantBefore = balanceOfWant();
@@ -88,13 +96,12 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         _profit = balanceOfWant().sub(balanceOfWantBefore);
     }
 
-
     // adjusts position.
     function adjustPosition(uint256 _debtOutstanding) internal override {
-       //emergency exit is dealt with in prepareReturn
+        //emergency exit is dealt with in prepareReturn
         if (emergencyExit) {
-          return;
-       }
+            return;
+        }
 
         // Invest the rest of the want
         uint256 _wantAvailable = balanceOfWant().sub(_debtOutstanding);
@@ -112,9 +119,9 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         internal
         override
         returns (
-          uint256 _profit,
-          uint256 _loss,
-          uint256 _debtPayment
+            uint256 _profit,
+            uint256 _loss,
+            uint256 _debtPayment
         )
     {
         // Shouldn't we revert if we try to exitPosition and there is a timelock?
@@ -133,8 +140,7 @@ contract StrategyWbtcHegicLP is BaseStrategy {
             uint256 writeBurn = IERC20(wbtcPool).balanceOf(address(this));
             IHegicWbtcPool(wbtcPool).withdraw(writeWbtc, writeBurn);
             uint256 _wbtcBalance = address(this).balance;
-        }
-        else {
+        } else {
             revert("funds timelocked");
         }
     }
@@ -150,7 +156,6 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         _amountFreed = Math.min(balanceOfWant(), _amountNeeded);
     }
 
-
     // withdraw a fraction, if not timelocked
     function _withdrawSome(uint256 _amount) internal returns (uint256) {
         uint256 _amountWriteWbtc = (_amount).mul(writeWbtcRatio());
@@ -160,11 +165,10 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         bool unlocked = withdrawUnlocked();
         if (unlocked = true) {
             IHegicWbtcPool(wbtcPool).withdraw(_amount, _amountBurn);
-
+        } else {
+            revert("withdrawal timelocked");
         }
-        else {revert("withdrawal timelocked");}
     }
-
 
     // this function transfers not just "want" tokens, but all tokens - including (un)staked writeWbtc.
     function prepareMigration(address _newStrategy) internal override {
@@ -227,20 +231,18 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         uint256 balance = IHegicWbtcPool(wbtcPool).totalBalance();
         uint256 rate = 0;
         if (supply > 0 && balance > 0) {
-             rate = (supply).div(balance);
-        }
-        else {
+            rate = (supply).div(balance);
+        } else {
             rate = 1e3;
         }
         return rate;
     }
 
     // calculates rewards rate in tokens per year for this address
-    function calculateRate() public view returns(uint256) {
+    function calculateRate() public view returns (uint256) {
         uint256 rate = IHegicWbtcPoolStaking(wbtcPoolStaking).userRewardPerTokenPaid(address(this));
         uint256 supply = IHegicWbtcPoolStaking(wbtcPoolStaking).totalSupply();
         uint256 ROI = IERC20(wbtcPoolStaking).balanceOf(address(this)).div(supply).mul(rate).mul((31536000));
         return ROI;
     }
-
 }

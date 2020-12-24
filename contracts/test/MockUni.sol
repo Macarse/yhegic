@@ -18,7 +18,7 @@ contract MockUni {
         address to,
         uint256 deadline
     ) external {
-      token.mintTo(to, 2* 10**18);
+        token.mintTo(to, 2 * 10**18);
     }
 
     function swapExactETHForTokens(

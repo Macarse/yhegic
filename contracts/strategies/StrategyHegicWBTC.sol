@@ -41,7 +41,7 @@ contract StrategyHegicWBTC is BaseStrategy {
         IERC20(WBTC).safeApprove(unirouter, uint256(-1));
     }
 
-    function protectedTokens() internal override view returns (address[] memory) {
+    function protectedTokens() internal view override returns (address[] memory) {
         address[] memory protected = new address[](3);
         protected[0] = address(want);
         protected[1] = hegic;
@@ -49,11 +49,19 @@ contract StrategyHegicWBTC is BaseStrategy {
         return protected;
     }
 
-    function estimatedTotalAssets() public override view returns (uint256) {
+    function estimatedTotalAssets() public view override returns (uint256) {
         return balanceOfWant().add(balanceOfStake()).add(hegicFutureProfit());
     }
 
-    function prepareReturn(uint256 _debtOutstanding) internal override returns (uint256 _profit, uint256 _loss, uint256 _debtPayment) {
+    function prepareReturn(uint256 _debtOutstanding)
+        internal
+        override
+        returns (
+            uint256 _profit,
+            uint256 _loss,
+            uint256 _debtPayment
+        )
+    {
         // We might need to return want to the vault
         if (_debtOutstanding > 0) {
             uint256 _amountFreed = liquidatePosition(_debtOutstanding);
@@ -93,9 +101,9 @@ contract StrategyHegicWBTC is BaseStrategy {
         internal
         override
         returns (
-          uint256 _profit,
-          uint256 _loss,
-          uint256 _debtPayment
+            uint256 _profit,
+            uint256 _loss,
+            uint256 _debtPayment
         )
     {
         uint256 stakes = IERC20(hegicStaking).balanceOf(address(this));

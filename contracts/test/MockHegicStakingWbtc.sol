@@ -23,7 +23,7 @@ contract MockHegicStakingWbtc is ERC20 {
 
     function sendProfit(uint256 amount) external {
         totalProfit = totalProfit.add(amount);
-        WBTC.safeTransferFrom(msg.sender, address (this), amount);
+        WBTC.safeTransferFrom(msg.sender, address(this), amount);
     }
 
     function claimProfit() external returns (uint256 _profit) {
@@ -35,7 +35,7 @@ contract MockHegicStakingWbtc is ERC20 {
     }
 
     function _transferProfit(uint256 _profit) internal {
-         WBTC.safeTransfer(msg.sender, _profit);
+        WBTC.safeTransfer(msg.sender, _profit);
     }
 
     function buy(uint256 _amount) external {
