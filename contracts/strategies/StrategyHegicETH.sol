@@ -39,10 +39,8 @@ contract StrategyHegicETH is BaseStrategy {
     }
 
     function protectedTokens() internal view override returns (address[] memory) {
-        address[] memory protected = new address[](3);
-        protected[0] = address(want);
-        protected[1] = hegic;
-        protected[2] = hegicStaking;
+        address[] memory protected = new address[](1);
+        protected[0] = hegicStaking;
         return protected;
     }
 
