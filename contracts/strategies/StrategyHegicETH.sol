@@ -30,6 +30,8 @@ contract StrategyHegicETH is BaseStrategy {
         address _hegicStaking,
         address _unirouter
     ) public BaseStrategy(_vault) {
+        require(_hegic == address(want));
+
         hegic = _hegic;
         hegicStaking = _hegicStaking;
         unirouter = _unirouter;

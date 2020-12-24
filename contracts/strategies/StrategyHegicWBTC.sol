@@ -32,6 +32,8 @@ contract StrategyHegicWBTC is BaseStrategy {
         address _unirouter,
         address _WBTC
     ) public BaseStrategy(_vault) {
+        require(_hegic == address(want));
+
         hegic = _hegic;
         hegicStaking = _hegicStaking;
         unirouter = _unirouter;
