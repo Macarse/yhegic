@@ -134,7 +134,7 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         // Invest the rest of the want
         uint256 _wantAvailable = balanceOfWant().sub(_debtOutstanding);
         if (_wantAvailable > 0) {
-            uint256 _availableFunds = address(this).balance;
+            uint256 _availableFunds = IERC20(wbtc).balanceOf(address(this));
             IHegicWbtcPool(wbtcPool).provide(_availableFunds, 0);
             uint256 writeWbtc = IERC20(wbtcPool).balanceOf(address(this));
             IHegicWbtcPoolStaking(wbtcPoolStaking).stake(writeWbtc);
