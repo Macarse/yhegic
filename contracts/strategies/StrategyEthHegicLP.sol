@@ -306,7 +306,7 @@ contract StrategyEthHegicLP is BaseStrategy {
     function calculateRate() public view returns(uint256) {
         uint256 rate = IHegicEthPoolStaking(ethPoolStaking).userRewardPerTokenPaid(address(this));
         uint256 supply = IHegicEthPoolStaking(ethPoolStaking).totalSupply();
-        uint256 roi = IERC20(ethPoolStaking).balanceOf(address(this)).div(supply).mul(rate).mul((31536000));
+        uint256 roi = IERC20(ethPoolStaking).balanceOf(address(this)).mul(rate).mul((31536000)).div(supply);
         return roi;
     }
 

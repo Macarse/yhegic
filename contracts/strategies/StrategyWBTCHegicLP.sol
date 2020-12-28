@@ -274,7 +274,7 @@ contract StrategyWbtcHegicLP is BaseStrategy {
     function calculateRate() public view returns(uint256) {
         uint256 rate = IHegicWbtcPoolStaking(wbtcPoolStaking).userRewardPerTokenPaid(address(this));
         uint256 supply = IHegicWbtcPoolStaking(wbtcPoolStaking).totalSupply();
-        uint256 roi = IERC20(wbtcPoolStaking).balanceOf(address(this)).div(supply).mul(rate).mul((31536000));
+        uint256 roi = IERC20(wbtcPoolStaking).balanceOf(address(this)).mul(rate).mul((31536000)).div(supply);
         return roi;
     }
 
