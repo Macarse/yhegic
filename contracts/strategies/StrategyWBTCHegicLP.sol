@@ -34,6 +34,8 @@ contract StrategyWbtcHegicLP is BaseStrategy {
         address _wbtcPool,
         address _unirouter
     ) public BaseStrategy(_vault) {
+        require(_wbtc == address(want));
+
         wbtc = _wbtc;
         rHegic = _rHegic;
         wbtcPoolStaking = _wbtcPoolStaking;

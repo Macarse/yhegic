@@ -35,6 +35,8 @@ contract StrategyEthHegicLP is BaseStrategy {
         address _ethPool,
         address _unirouter
     ) public BaseStrategy(_vault) {
+        require(_weth == address(want));
+
         weth = _weth;
         rHegic = _rHegic;
         ethPoolStaking = _ethPoolStaking;
