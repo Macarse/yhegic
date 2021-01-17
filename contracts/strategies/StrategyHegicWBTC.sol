@@ -3,12 +3,12 @@
 pragma experimental ABIEncoderV2;
 pragma solidity 0.6.12;
 
-import "@openzeppelinV3/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelinV3/contracts/math/SafeMath.sol";
-import "@openzeppelinV3/contracts/math/Math.sol";
-import "@openzeppelinV3/contracts/utils/Address.sol";
-import "@openzeppelinV3/contracts/token/ERC20/SafeERC20.sol";
-import {BaseStrategy, StrategyParams} from "@yearnvaults/contracts/BaseStrategy.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/math/Math.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {BaseStrategy} from "@yearnvaults/contracts/BaseStrategy.sol";
 
 import "../../interfaces/hegic/IHegicStaking.sol";
 import "../../interfaces/uniswap/Uni.sol";
@@ -64,7 +64,8 @@ contract StrategyHegicWBTC is BaseStrategy {
     {
         // We might need to return want to the vault
         if (_debtOutstanding > 0) {
-            uint256 _amountFreed = liquidatePosition(_debtOutstanding);
+            uint256 _amountFreed = 0;
+            (_amountFreed, _loss) = liquidatePosition(_debtOutstanding);
             _debtPayment = Math.min(_amountFreed, _debtOutstanding);
         }
 
@@ -88,6 +89,11 @@ contract StrategyHegicWBTC is BaseStrategy {
             return;
         }
 
+        // do not invest if we have more debt than want
+        if (_debtOutstanding > balanceOfWant()) {
+            return;
+        }
+
         // Invest the rest of the want
         uint256 _wantAvailable = balanceOfWant().sub(_debtOutstanding);
         uint256 _lotsToBuy = _wantAvailable.div(LOT_PRICE);
@@ -97,27 +103,20 @@ contract StrategyHegicWBTC is BaseStrategy {
         }
     }
 
-    function exitPosition(uint256 _debtOutstanding)
-        internal
-        override
-        returns (
-            uint256 _profit,
-            uint256 _loss,
-            uint256 _debtPayment
-        )
-    {
-        uint256 stakes = IERC20(hegicStaking).balanceOf(address(this));
-        IHegicStaking(hegicStaking).sell(stakes);
-        return prepareReturn(_debtOutstanding);
-    }
-
-    function liquidatePosition(uint256 _amountNeeded) internal override returns (uint256 _amountFreed) {
+    function liquidatePosition(uint256 _amountNeeded) internal override returns (uint256 _liquidatedAmount, uint256 _loss) {
         if (balanceOfWant() < _amountNeeded) {
             // We need to sell stakes to get back more want
             _withdrawSome(_amountNeeded.sub(balanceOfWant()));
         }
 
-        _amountFreed = balanceOfWant();
+        uint256 balanceOfWant = balanceOfWant();
+
+        if (balanceOfWant >= _amountNeeded) {
+            _liquidatedAmount = _amountNeeded;
+        } else {
+            _liquidatedAmount = balanceOfWant;
+            _loss = _amountNeeded.sub(balanceOfWant);
+        }
     }
 
     function _withdrawSome(uint256 _amount) internal returns (uint256) {
@@ -143,10 +142,10 @@ contract StrategyHegicWBTC is BaseStrategy {
     function _swap(uint256 _amountIn) internal returns (uint256[] memory amounts) {
         address[] memory path = new address[](3);
         path[0] = address(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599); // wbtc
-        path[1] = address(0x6B175474E89094C44Da98b954EedeAC495271d0F); // dai
+        path[1] = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2); // weth
         path[2] = address(want);
 
-        Uni(unirouter).swapExactTokensForTokens(_amountIn, uint256(0), path, address(this), now.add(1 days));
+        Uni(unirouter).swapExactTokensForTokens(_amountIn, uint256(0), path, address(this), now);
     }
 
     function hegicFutureProfit() public view returns (uint256) {
@@ -157,7 +156,7 @@ contract StrategyHegicWBTC is BaseStrategy {
 
         address[] memory path = new address[](3);
         path[0] = address(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599); // wbtc
-        path[1] = address(0x6B175474E89094C44Da98b954EedeAC495271d0F); // dai
+        path[1] = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2); // weth
         path[2] = address(want);
         uint256[] memory amounts = Uni(unirouter).getAmountsOut(wbtcProfit, path);
 

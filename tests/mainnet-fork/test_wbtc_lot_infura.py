@@ -17,36 +17,33 @@ def test_hegic_strategy_infura(pm):
     alice = accounts[6]
     strategist = accounts[7]
 
-    hegic = Contract.from_explorer(
-        "0x584bC13c7D411c00c01A62e8019472dE68768430", owner=gov
-    )  # Hegic token
+    hegic = Contract("0x584bC13c7D411c00c01A62e8019472dE68768430", owner=gov)
     hegic.approve(hegic_liquidity, Wei("1000000 ether"), {"from": hegic_liquidity})
     hegic.transferFrom(
         hegic_liquidity, gov, Wei("888000 ether"), {"from": hegic_liquidity}
     )
 
     Vault = pm(config["dependencies"][0]).Vault
-    yHegic = gov.deploy(Vault, hegic, gov, rewards, "", "")
+    yHegic = Vault.deploy({"from": gov})
+    yHegic.initialize(hegic, gov, rewards, "", "")
+    yHegic.setDepositLimit(Wei("889000 ether"))
 
-    hegicStaking = Contract.from_explorer(
-        "0x840a1AE46B7364855206Eb5b7286Ab7E207e515b", owner=gov
-    )  # HEGIC WBTC Staking lot (hlWBTC)
-    uni = Contract.from_explorer(
-        "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", owner=gov
-    )  # UNI router v2
+    # HEGIC WBTC Staking lot (hlWBTC)
+    hegicStaking = Contract("0x840a1AE46B7364855206Eb5b7286Ab7E207e515b", owner=gov)
+    # Sushiswap router v2
+    uni = Contract("0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f", owner=gov)
 
     wbtcLiquidity = accounts.at(
-        "0x9939d72411c6af3c97beff0ac81e3b780e4712ee", force=True
+        "0x6a11f3e5a01d129e566d783a7b6e8862bfd66cca", force=True
     )
-    wbtc = Contract.from_explorer("0x2260fac5e5542a773aa44fbcfedf7c193bc2c599")
+    wbtc = Contract("0x2260fac5e5542a773aa44fbcfedf7c193bc2c599")
     wbtc.approve(hegicStaking, Wei("100 ether"), {"from": wbtcLiquidity})
 
     strategy = guardian.deploy(
         StrategyHegicWBTC, yHegic, hegic, hegicStaking, uni, wbtc
     )
     strategy.setStrategist(strategist)
-
-    yHegic.addStrategy(strategy, Wei("888000 ether"), 0, 50, {"from": gov})
+    yHegic.addStrategy(strategy, 10_000, 0, 0, {"from": gov})
 
     hegic.approve(gov, Wei("1000000 ether"), {"from": gov})
     hegic.transferFrom(gov, bob, Wei("100000 ether"), {"from": gov})
@@ -66,4 +63,4 @@ def test_hegic_strategy_infura(pm):
     strategy.harvest({"from": gov})
 
     # We should have made profit
-    assert yHegic.pricePerShare() > 1
+    assert yHegic.pricePerShare() / 1e18 > 1

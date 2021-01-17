@@ -5,7 +5,7 @@ from brownie import Wei
 def test_buy_stake(gov, vault, hegic, hegicStaking, strategy):
 
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
-    vault.addStrategy(strategy, hegic.balanceOf(gov), 0, 0, {"from": gov})
+    vault.addStrategy(strategy, 10_000, 0, 0, {"from": gov})
     # deposit 1MM in total to test
     vault.deposit(Wei("1000000 ether"), {"from": gov})
     strategy.harvest()
@@ -16,7 +16,7 @@ def test_buy_stake(gov, vault, hegic, hegicStaking, strategy):
 
 def test_harvest(gov, vault, hegic, hegicStaking, strategy, rewards, strategist):
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
-    vault.addStrategy(strategy, hegic.balanceOf(gov), 0, 50, {"from": gov})
+    vault.addStrategy(strategy, 10_000, 0, 50, {"from": gov})
     strategy.setRewards(strategist, {"from": strategist})
 
     # deposit 888k in total to test

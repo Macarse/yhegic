@@ -10,7 +10,7 @@ def test_exit_with_single_deposit(gov, hegic, hegicStaking, vault, strategy, bob
     vault.setManagementFee(0)
     hegic.approve(vault, 2 ** 256 - 1, {"from": bob})
     vault.deposit(hegic.balanceOf(bob), {"from": bob})
-    vault.addStrategy(strategy, Wei("888000 ether"), 0, 0, {"from": gov})
+    vault.addStrategy(strategy, 10_000, 0, 0, {"from": gov})
 
     assert vault.emergencyShutdown() == False
     vault.setEmergencyShutdown(True)
@@ -33,7 +33,7 @@ def test_exit_after_investment(gov, hegic, hegicStaking, vault, strategy, bob):
     vault.setManagementFee(0)
     hegic.approve(vault, 2 ** 256 - 1, {"from": bob})
     vault.deposit(hegic.balanceOf(bob), {"from": bob})
-    vault.addStrategy(strategy, Wei("888000 ether"), 0, 0, {"from": gov})
+    vault.addStrategy(strategy, 10_000, 0, 0, {"from": gov})
 
     assert vault.emergencyShutdown() == False
     strategy.harvest()
@@ -46,9 +46,9 @@ def test_exit_after_investment(gov, hegic, hegicStaking, vault, strategy, bob):
     # Try getting some money out before full shutdown from vault
     vault.withdraw(Wei("100 ether"), {"from": bob})
     assert hegic.balanceOf(bob) == Wei("100 ether")
-    assert hegic.balanceOf(vault) == Wei("887900 ether")
-    assert hegic.balanceOf(strategy) == 0
-    assert vault.debtOutstanding(strategy) == 0
+    assert hegic.balanceOf(vault) == 0
+    assert hegic.balanceOf(strategy) == Wei("887900 ether")
+    assert vault.debtOutstanding(strategy) == Wei("887900 ether")
 
     # Full shutdown
     vault.revokeStrategy(strategy)

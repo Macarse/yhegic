@@ -3,12 +3,12 @@
 pragma experimental ABIEncoderV2;
 pragma solidity 0.6.12;
 
-import "@openzeppelinV3/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelinV3/contracts/math/SafeMath.sol";
-import "@openzeppelinV3/contracts/math/Math.sol";
-import "@openzeppelinV3/contracts/utils/Address.sol";
-import "@openzeppelinV3/contracts/token/ERC20/SafeERC20.sol";
-import {BaseStrategy, StrategyParams} from "@yearnvaults/contracts/BaseStrategy.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/math/Math.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {BaseStrategy} from "@yearnvaults/contracts/BaseStrategy.sol";
 
 import "../../interfaces/hegic/IHegicEthPoolStaking.sol";
 import "../../interfaces/hegic/IHegicEthPool.sol";
@@ -110,7 +110,8 @@ contract StrategyEthHegicLP is BaseStrategy {
     {
         // We might need to return want to the vault
         if (_debtOutstanding > 0) {
-            uint256 _amountFreed = liquidatePosition(_debtOutstanding);
+            uint256 _amountFreed = 0;
+            (_amountFreed, _loss) = liquidatePosition(_debtOutstanding);
             _debtPayment = Math.min(_amountFreed, _debtOutstanding);
         }
 
@@ -167,7 +168,6 @@ contract StrategyEthHegicLP is BaseStrategy {
     // each deposit into the ETH pool restarts the 14 day counter on the entire value.
     function exitPosition(uint256 _debtOutstanding)
         internal
-        override
         returns (
             uint256 _profit,
             uint256 _loss,
@@ -196,14 +196,14 @@ contract StrategyEthHegicLP is BaseStrategy {
     }
 
     //this math only deals with want, which is weth.
-    function liquidatePosition(uint256 _amountNeeded) internal override returns (uint256 _amountFreed) {
+    function liquidatePosition(uint256 _amountNeeded) internal override returns (uint256 _liquidatedAmount, uint256 _loss) {
         if (balanceOfWant() < _amountNeeded) {
             // We need to sell stakes to get back more want
             _withdrawSome(_amountNeeded.sub(balanceOfWant()));
         }
 
         // Since we might free more than needed, let's send back the min
-        _amountFreed = Math.min(balanceOfWant(), _amountNeeded);
+        _liquidatedAmount = Math.min(balanceOfWant(), _amountNeeded);
     }
 
     // withdraw a fraction, if not timelocked
