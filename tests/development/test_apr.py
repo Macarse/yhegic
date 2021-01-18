@@ -27,11 +27,7 @@ def stateOfStrat(strategy, hegic, hegicStaking):
 def test_apr(gov, vault, hegic, hegicStaking, strategy):
     hegic.approve(vault, 2 ** 256 - 1, {"from": gov})
     vault.addStrategy(
-        strategy,
-        2 ** 256 - 1,
-        2 ** 256 - 1,
-        500,  # 500 bps fee for strategist
-        {"from": gov},
+        strategy, 10_000, 0, 500, {"from": gov},  # 500 bps fee for strategist
     )
 
     vault.deposit(Wei("888000 ether"), {"from": gov})
@@ -47,7 +43,6 @@ def test_apr(gov, vault, hegic, hegicStaking, strategy):
         day = (1 + i) * ONE_DAY
         print(f"\n----Day {day/ONE_DAY}----")
 
-        assert vault.creditAvailable(strategy) == 0
         hegicStaking.sendProfit({"value": Wei("0.1 ether")})
         strategy.harvest()
         stateOfStrat(strategy, hegic, hegicStaking)

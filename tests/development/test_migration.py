@@ -15,7 +15,7 @@ def test_migration(
     hegic.approve(vault, 2 ** 256 - 1, {"from": alice})
     vault.deposit(hegic.balanceOf(bob), {"from": bob})
     vault.deposit(hegic.balanceOf(alice), {"from": alice})
-    vault.addStrategy(strategy, Wei("1776000 ether"), 0, 0, {"from": gov})
+    vault.addStrategy(strategy, 10_000, 0, 0, {"from": gov})
 
     strategy.harvest()
     assert hegicStaking.balanceOf(strategy) == 1
@@ -53,7 +53,7 @@ def test_migration_missing_profit(
     hegic.approve(vault, 2 ** 256 - 1, {"from": alice})
     vault.deposit(hegic.balanceOf(bob), {"from": bob})
     vault.deposit(hegic.balanceOf(alice), {"from": alice})
-    vault.addStrategy(strategy, Wei("1776000 ether"), 0, 0, {"from": gov})
+    vault.addStrategy(strategy, 10_000, 0, 0, {"from": gov})
 
     strategy.harvest()
     assert hegicStaking.balanceOf(strategy) == 1
@@ -72,10 +72,10 @@ def test_migration_missing_profit(
     assert hegicStaking.balanceOf(strategy2) == 1
     assert hegic.balanceOf(strategy2) == Wei("12000 ether")
 
-    # a harvest would revert since the strategy is not longer added to the vault
+    # Can't re-add a strategy
     with brownie.reverts():
-        strategy.harvest()
+        vault.addStrategy(strategy, 0, 0, 0, {"from": gov})
 
-    vault.addStrategy(strategy, 0, 0, 0, {"from": gov})
+    # But it can harvest
     strategy.harvest()
     assert strategy.hegicFutureProfit() == 0

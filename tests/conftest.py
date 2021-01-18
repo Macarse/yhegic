@@ -1,5 +1,5 @@
 import pytest
-from brownie import config
+from brownie import config, Wei
 from brownie import FakeHegic, StrategyHegicETH, MockHegicStakingEth, MockUni
 
 
@@ -41,7 +41,10 @@ def hegic(gov):
 @pytest.fixture
 def vault(pm, gov, hegic, rewards):
     Vault = pm(config["dependencies"][0]).Vault
-    yield gov.deploy(Vault, hegic, gov, rewards, "", "")
+    vault = Vault.deploy({"from": gov})
+    vault.initialize(hegic, gov, rewards, "", "")
+    vault.setDepositLimit(Wei("1000000 ether"))
+    yield vault
 
 
 @pytest.fixture

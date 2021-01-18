@@ -3,12 +3,12 @@
 pragma experimental ABIEncoderV2;
 pragma solidity 0.6.12;
 
-import "@openzeppelinV3/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelinV3/contracts/math/SafeMath.sol";
-import "@openzeppelinV3/contracts/math/Math.sol";
-import "@openzeppelinV3/contracts/utils/Address.sol";
-import "@openzeppelinV3/contracts/token/ERC20/SafeERC20.sol";
-import {BaseStrategy, StrategyParams} from "@yearnvaults/contracts/BaseStrategy.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/math/Math.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {BaseStrategy} from "@yearnvaults/contracts/BaseStrategy.sol";
 
 import "../../interfaces/hegic/IHegicStaking.sol";
 import "../../interfaces/uniswap/Uni.sol";
@@ -59,7 +59,8 @@ contract StrategyHegicETH is BaseStrategy {
     {
         // We might need to return want to the vault
         if (_debtOutstanding > 0) {
-            uint256 _amountFreed = liquidatePosition(_debtOutstanding);
+            uint256 _amountFreed = 0;
+            (_amountFreed, _loss) = liquidatePosition(_debtOutstanding);
             _debtPayment = Math.min(_amountFreed, _debtOutstanding);
         }
 
@@ -77,8 +78,13 @@ contract StrategyHegicETH is BaseStrategy {
     }
 
     function adjustPosition(uint256 _debtOutstanding) internal override {
-        //emergency exit is dealt with in prepareReturn
+        // emergency exit is dealt with in prepareReturn
         if (emergencyExit) {
+            return;
+        }
+
+        // do not invest if we have more debt than want
+        if (_debtOutstanding > balanceOfWant()) {
             return;
         }
 
@@ -91,27 +97,20 @@ contract StrategyHegicETH is BaseStrategy {
         }
     }
 
-    function exitPosition(uint256 _debtOutstanding)
-        internal
-        override
-        returns (
-            uint256 _profit,
-            uint256 _loss,
-            uint256 _debtPayment
-        )
-    {
-        uint256 stakes = IERC20(hegicStaking).balanceOf(address(this));
-        IHegicStaking(hegicStaking).sell(stakes);
-        return prepareReturn(_debtOutstanding);
-    }
-
-    function liquidatePosition(uint256 _amountNeeded) internal override returns (uint256 _amountFreed) {
+    function liquidatePosition(uint256 _amountNeeded) internal override returns (uint256 _liquidatedAmount, uint256 _loss) {
         if (balanceOfWant() < _amountNeeded) {
             // We need to sell stakes to get back more want
             _withdrawSome(_amountNeeded.sub(balanceOfWant()));
         }
 
-        _amountFreed = balanceOfWant();
+        uint256 balanceOfWant = balanceOfWant();
+
+        if (balanceOfWant >= _amountNeeded) {
+            _liquidatedAmount = _amountNeeded;
+        } else {
+            _liquidatedAmount = balanceOfWant;
+            _loss = _amountNeeded.sub(balanceOfWant);
+        }
     }
 
     function _withdrawSome(uint256 _amount) internal returns (uint256) {
@@ -138,7 +137,7 @@ contract StrategyHegicETH is BaseStrategy {
         path[0] = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2); // weth
         path[1] = address(want);
 
-        return Uni(unirouter).swapExactETHForTokens{value: _amountIn}(_amountIn, path, address(this), now.add(1 days));
+        return Uni(unirouter).swapExactETHForTokens{value: _amountIn}(_amountIn, path, address(this), now);
     }
 
     function hegicFutureProfit() public view returns (uint256) {

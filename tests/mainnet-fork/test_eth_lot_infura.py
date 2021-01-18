@@ -17,28 +17,28 @@ def test_hegic_strategy_infura(pm):
     alice = accounts[6]
     strategist = accounts[7]
 
-    hegic = Contract.from_explorer(
-        "0x584bC13c7D411c00c01A62e8019472dE68768430", owner=gov
-    )  # Hegic token
+    hegic = Contract("0x584bC13c7D411c00c01A62e8019472dE68768430", owner=gov)
     hegic.approve(hegic_liquidity, Wei("1000000 ether"), {"from": hegic_liquidity})
     hegic.transferFrom(
         hegic_liquidity, gov, Wei("888000 ether"), {"from": hegic_liquidity}
     )
 
     Vault = pm(config["dependencies"][0]).Vault
-    yHegic = gov.deploy(Vault, hegic, gov, rewards, "", "")
+    yHegic = Vault.deploy({"from": gov})
+    yHegic.initialize(hegic, gov, rewards, "", "")
+    yHegic.setDepositLimit(Wei("889000 ether"))
 
-    hegicStaking = Contract.from_explorer(
-        "0x1Ef61E3E5676eC182EED6F052F8920fD49C7f69a", owner=gov
-    )  # HEGIC ETH Staking lot (hlETH)
-    uni = Contract.from_explorer(
-        "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", owner=gov
-    )  # UNI router v2
+    # HEGIC ETH Staking lot (hlETH)
+    hegicStaking = Contract("0x1Ef61E3E5676eC182EED6F052F8920fD49C7f69a", owner=gov)
+
+    # Sushiswap router v2
+    uni = Contract("0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f", owner=gov)
 
     strategy = guardian.deploy(StrategyHegicETH, yHegic, hegic, hegicStaking, uni)
     strategy.setStrategist(strategist)
 
-    yHegic.addStrategy(strategy, Wei("888000 ether"), 0, 50, {"from": gov})
+    # 100% of the vault's depositLimit
+    yHegic.addStrategy(strategy, 10_000, 0, 0, {"from": gov})
 
     hegic.approve(gov, Wei("1000000 ether"), {"from": gov})
     hegic.transferFrom(gov, bob, Wei("100000 ether"), {"from": gov})
@@ -58,4 +58,4 @@ def test_hegic_strategy_infura(pm):
     strategy.harvest({"from": gov})
 
     # We should have made profit
-    assert yHegic.pricePerShare() > 1
+    assert yHegic.pricePerShare() / 1e18 > 1
